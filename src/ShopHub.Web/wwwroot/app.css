@@ -17,14 +17,29 @@ a, .btn-link {
     border-color: #a83f08;
 }
 
-.btn-outline-primary {
+/* Alle Buttons einheitlich orange: auch die Umrissvarianten für Abbrechen/Löschen (secondary, danger)
+   tragen die Markenfarbe statt Grau/Rot. */
+.btn-primary:disabled, .btn-primary.disabled {
+    background-color: #e8590c;
+    border-color: #c94d0a;
+}
+
+.btn-outline-primary, .btn-outline-secondary, .btn-outline-danger {
     color: #e8590c;
     border-color: #e8590c;
 }
 
-.btn-outline-primary:hover, .btn-outline-primary:active {
+.btn-outline-primary:hover, .btn-outline-primary:active,
+.btn-outline-secondary:hover, .btn-outline-secondary:active,
+.btn-outline-danger:hover, .btn-outline-danger:active {
     color: #fff;
     background-color: #e8590c;
+    border-color: #e8590c;
+}
+
+.btn-outline-primary:disabled, .btn-outline-secondary:disabled, .btn-outline-danger:disabled {
+    color: #e8590c;
+    background-color: transparent;
     border-color: #e8590c;
 }
 
