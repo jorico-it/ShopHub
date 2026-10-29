@@ -47,8 +47,8 @@ public partial class Artikeletiketten
                 .etikett-code { flex: none; display: flex; flex-direction: column; }
                 .etikett-barcode { height: 15mm; flex: none; display: flex; justify-content: flex-end; }
                 .etikett-gtin { display: flex; justify-content: space-between; line-height: 1.15; flex: none; }
-                .etikett-artnr { font-size: calc(9pt * {{faktor}}); text-align: left; line-height: 1.15; white-space: nowrap; flex: none; }
-                .etikett-name { font-size: calc(7.5pt * {{faktor}}); text-align: left; line-height: 1.15; max-height: 2.3em; overflow: hidden; flex: none; }
+                .etikett-artnr { font-size: calc(7pt * {{faktor}}); text-align: left; line-height: 1.15; white-space: nowrap; flex: none; }
+                .etikett-name { font-size: calc(5.5pt * {{faktor}}); text-align: left; line-height: 1.15; max-height: 2.3em; overflow: hidden; flex: none; }
                 .etikett-bundle { font-size: calc(5pt * {{faktor}}); text-align: left; line-height: 1.15; max-height: 3.5em; overflow: hidden; flex: none; }
                 .etiketten-druck .etikett:nth-child(n+{{VorschauAnzahl + 1}}) { display: none; }
                 @media print {
