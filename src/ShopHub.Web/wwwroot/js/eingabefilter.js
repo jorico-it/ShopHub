@@ -1,6 +1,8 @@
 // Begrenzt Eingabefelder mit dem Attribut data-eingabefilter schon beim Tippen und Einfügen:
 //   "ziffern"       - nur Ziffern (PLZ, Telefon)
+//   "telefon"       - Ziffern, Leerzeichen und "+" (Telefonnummer)
 //   "land-ziffern"  - zwei Buchstaben als Ländercode, ab der 3. Stelle nur Ziffern (IBAN, USt-IdNr., EORI)
+//   "de-ziffern"    - vorne "DE", danach nur Ziffern (Lucid-ID)
 // Ein einziger dokumentweiter Listener reicht und bleibt auch nach dem Neu-Rendern von Blazor gültig.
 // Die Filter arbeiten Zeichen für Zeichen von links, damit sich die Cursorposition aus dem gefilterten
 // Text vor dem Cursor ergibt. Der Blazor-Wert wird beim Verlassen des Felds (change) übernommen.
@@ -11,6 +13,14 @@ function filtere(art, text) {
     for (const zeichen of text) {
         if (art === "ziffern") {
             if (/[0-9]/.test(zeichen)) ergebnis += zeichen;
+        } else if (art === "telefon") {
+            if (/[0-9 +]/.test(zeichen)) ergebnis += zeichen;
+        } else if (art === "de-ziffern") {
+            if (ergebnis.length < 2) {
+                if (zeichen.toUpperCase() === "DE"[ergebnis.length]) ergebnis += zeichen.toUpperCase();
+            } else if (/[0-9]/.test(zeichen)) {
+                ergebnis += zeichen;
+            }
         } else if (art === "land-ziffern") {
             if (ergebnis.length < 2) {
                 if (/[A-Za-z]/.test(zeichen)) ergebnis += zeichen.toUpperCase();

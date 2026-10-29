@@ -63,7 +63,7 @@
             </tr>
             <tr>
                 <td class="calc-label">Telefon</td>
-                <td><input class="form-control form-control-sm" style="width: 220px;" maxlength="50" inputmode="numeric" data-eingabefilter="ziffern" @bind="_mandant.Telefon" /></td>
+                <td><input class="form-control form-control-sm" style="width: 220px;" maxlength="50" inputmode="tel" data-eingabefilter="telefon" @bind="_mandant.Telefon" /></td>
             </tr>
             <tr>
                 <td class="calc-label">E-Mail</td>
@@ -99,7 +99,7 @@
             </tr>
             <tr>
                 <td class="calc-label">Lucid ID</td>
-                <td><input class="form-control form-control-sm" style="width: 220px;" maxlength="20" placeholder="z. B. DE1234567890123456" @bind="_mandant.LucidId" /></td>
+                <td><input class="form-control form-control-sm" style="width: 220px;" maxlength="20" placeholder="z. B. DE1234567890123456" data-eingabefilter="de-ziffern" @bind="_mandant.LucidId" /></td>
             </tr>
             @if (_istAdmin)
             {
@@ -221,9 +221,16 @@
         }
 
         var telefon = NullWennLeer(_mandant.Telefon);
-        if (telefon is not null && !telefon.All(char.IsAsciiDigit))
+        if (telefon is not null && !telefon.All(c => char.IsAsciiDigit(c) || c is ' ' or '+'))
         {
-            _fehler = "Die Telefonnummer darf nur Ziffern enthalten.";
+            _fehler = "Die Telefonnummer darf nur Ziffern, Leerzeichen und + enthalten.";
+            return;
+        }
+
+        var lucidId = OhneLeerzeichen(_mandant.LucidId);
+        if (lucidId is not null && !(lucidId.StartsWith("DE") && LandMitZiffern(lucidId)))
+        {
+            _fehler = "Die Lucid ID muss mit DE beginnen, danach nur Ziffern.";
             return;
         }
 
@@ -276,7 +283,7 @@
         ziel.Steuernummer = NullWennLeer(_mandant.Steuernummer);
         ziel.UstIdNr = ustIdNr;
         ziel.EoriNummer = eoriNummer;
-        ziel.LucidId = NullWennLeer(_mandant.LucidId);
+        ziel.LucidId = lucidId;
         await db.SaveChangesAsync();
 
         _meldung = "Mandant gespeichert.";

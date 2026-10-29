@@ -52,7 +52,8 @@ Auf einer neuen Maschine zuerst den Connection String hinterlegen:
   EORI-Nummer sowie das Logo (`Logo` als `varbinary(max)`, PNG/JPEG bis 512 KB). Das Logo kommt nie
   mit in Listenabfragen (immer auf die benötigten Spalten projizieren) und wird über den Endpoint
   `/mandant-logo/{MandantNr}` ausgeliefert (Admins jedes, andere nur das des eigenen Mandanten).
-  Weiteres Stammdatenfeld: `Geschaeftsfuehrer` (Maske "Geschäftsführer").
+  Weiteres Stammdatenfeld: `Geschaeftsfuehrer` (Maske "Geschäftsführer"). Eingaberegeln: Telefon nur Ziffern, Leerzeichen und `+`;
+  Lucid-ID vorne `DE`, danach nur Ziffern (Filter in `wwwroot/js/eingabefilter.js`: `telefon`, `de-ziffern`, plus Prüfung beim Speichern).
   Pflege unter `/mandanten` (Liste, nur Admins) und `/mandant-bearbeiten/{MandantNr}`. Die Maske dürfen auch normale
   Benutzer öffnen, aber nur für den Mandanten ihres Kontos: für sie heißt der Menüpunkt statt "Mandanten" **"Firmendaten"**,
   die Maske heißt ebenso und zeigt kein Feld "Aktiv" (das ändern nur Admins); fremde Mandanten erscheinen als "gibt es nicht".
