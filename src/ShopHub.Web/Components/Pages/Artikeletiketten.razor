@@ -275,16 +275,19 @@
 
         _abgeschnitten = treffer.Count > MaxZeilen;
 
-        // Bestandteile aller angezeigten Bundles auf einmal auflösen: SKU -> Bezeichnung.
+        // Bestandteile aller angezeigten Bundles auf einmal auflösen: SKU -> Name und Größe.
         var bundles = treffer.Take(MaxZeilen).ToDictionary(t => t.ArtikelvarianteID, t => LeseBundleElemente(t.BundleElemente));
         var bundleSkus = bundles.Values.SelectMany(e => e).Select(e => e.SKU).Distinct().ToList();
-        Dictionary<string, string> bezeichnungen = bundleSkus.Count == 0
+        Dictionary<string, (string Name, string? Groesse)> bestandteile = bundleSkus.Count == 0
             ? []
             : (await db.Artikelvarianten.AsNoTracking()
                 .Where(v => v.MandantNr == mandantNr && bundleSkus.Contains(v.SKU))
                 .Select(v => new { v.SKU, v.Artikel!.Bezeichnung, v.Artikel.Kurzbeschreibung, v.Variantenname, v.Variantenmerkmale })
                 .ToListAsync())
-                .ToDictionary(v => v.SKU, v => Bestandteilname(v.Bezeichnung, v.Kurzbeschreibung, v.Variantenname, v.Variantenmerkmale), StringComparer.OrdinalIgnoreCase);
+                .ToDictionary(
+                    v => v.SKU,
+                    v => (Bestandteilname(v.Bezeichnung, v.Kurzbeschreibung, v.Variantenname, v.Variantenmerkmale), LeseGroesse(v.Variantenmerkmale)),
+                    StringComparer.OrdinalIgnoreCase);
 
         _zeilen = treffer.Take(MaxZeilen).Select(t =>
         {
@@ -299,9 +302,12 @@
                 SKU = t.SKU,
                 Anzeigename = Anzeigename(t.Bezeichnung, t.Variantenname),
                 GTIN = t.GTIN!.Trim(),
-                Groesse = LeseMerkmal(t.Variantenmerkmale, "Größe")?.Trim() is { Length: > 0 } groesse ? groesse : null,
+                // Ein Bundle hat die Größe seines ersten Elements.
+                Groesse = bundles[t.ArtikelvarianteID].Count > 0 && bestandteile.TryGetValue(bundles[t.ArtikelvarianteID][0].SKU, out var erstes) && erstes.Groesse is not null
+                    ? erstes.Groesse
+                    : LeseGroesse(t.Variantenmerkmale),
                 BundleNamen = bundles[t.ArtikelvarianteID]
-                    .Select(e => (e.Menge > 1 ? $"{e.Menge} x " : "") + bezeichnungen.GetValueOrDefault(e.SKU, e.SKU))
+                    .Select(e => (e.Menge > 1 ? $"{e.Menge} x " : "") + (bestandteile.TryGetValue(e.SKU, out var b) ? b.Name : e.SKU))
                     .ToList(),
                 MarkeID = t.MarkeID,
                 Markenname = t.Markenname,
@@ -326,6 +332,9 @@
 
         return Anzeigename(bezeichnung, variantenname);
     }
+
+    private static string? LeseGroesse(string? variantenmerkmale) =>
+        LeseMerkmal(variantenmerkmale, "Größe")?.Trim() is { Length: > 0 } groesse ? groesse : null;
 
     // Variantenmerkmale ist ein JSON-Objekt {"Tiername":"Einhorn","Größe":"L"}; ein nicht lesbarer Inhalt zählt als "kein Merkmal".
     private static string? LeseMerkmal(string? json, string name)
