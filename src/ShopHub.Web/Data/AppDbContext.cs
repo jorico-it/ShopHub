@@ -47,6 +47,7 @@ public class AppDbContext(DbContextOptions<AppDbContext> options) : IdentityDbCo
             e.HasKey(m => m.MandantNr).HasName("PK_Mandanten");
             e.Property(m => m.MandantNr).ValueGeneratedNever();
             e.Property(m => m.Bezeichnung).HasMaxLength(200);
+            e.Property(m => m.Geschaeftsfuehrer).HasMaxLength(200);
             e.Property(m => m.Strasse).HasMaxLength(200);
             e.Property(m => m.Plz).HasMaxLength(20);
             e.Property(m => m.Ort).HasMaxLength(100);

@@ -52,7 +52,10 @@ Auf einer neuen Maschine zuerst den Connection String hinterlegen:
   EORI-Nummer sowie das Logo (`Logo` als `varbinary(max)`, PNG/JPEG bis 512 KB). Das Logo kommt nie
   mit in Listenabfragen (immer auf die benötigten Spalten projizieren) und wird über den Endpoint
   `/mandant-logo/{MandantNr}` ausgeliefert (Admins jedes, andere nur das des eigenen Mandanten).
-  Pflege unter `/mandanten` (Liste) und `/mandant-bearbeiten/{MandantNr}`.
+  Weiteres Stammdatenfeld: `Geschaeftsfuehrer` (Maske "Geschäftsführer").
+  Pflege unter `/mandanten` (Liste, nur Admins) und `/mandant-bearbeiten/{MandantNr}`. Die Maske dürfen auch normale
+  Benutzer öffnen, aber nur für den Mandanten ihres Kontos: für sie heißt der Menüpunkt statt "Mandanten" **"Firmendaten"**,
+  die Maske heißt ebenso und zeigt kein Feld "Aktiv" (das ändern nur Admins); fremde Mandanten erscheinen als "gibt es nicht".
 - `Marken` (Referenztabelle je Mandant, `Markenname` eindeutig je Mandant; optionales Logo wie beim Mandanten, Endpoint `/marke-logo/{MarkeID}`, Pflege unter `/marken`; Prüfung der Bilddatei in `Services/LogoDatei`).
 - `Artikel` (Produktstamm, `Artikelnummer` eindeutig je Mandant, `MarkeID` -> `Marken`).
 - `Artikelvarianten` (Tabelle `jorArtikelvarianten`; `SKU` und `GTIN` eindeutig je Mandant, GTIN als

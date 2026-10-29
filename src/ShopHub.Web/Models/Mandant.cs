@@ -12,6 +12,9 @@ public class Mandant : IMitZeitstempel
     public string Bezeichnung { get; set; } = "";
     public bool Aktiv { get; set; } = true;
 
+    /// <summary>Name der Geschäftsführung, z. B. für Impressum und Belege.</summary>
+    public string? Geschaeftsfuehrer { get; set; }
+
     public string? Strasse { get; set; }
     public string? Plz { get; set; }
     public string? Ort { get; set; }

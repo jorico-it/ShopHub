@@ -4,17 +4,18 @@
 @using ShopHub.Web.Data
 @using ShopHub.Web.Models
 @using ShopHub.Web.Services
-@attribute [Authorize(Policy = "AdminOnly")]
 @rendermode InteractiveServer
 @inject IDbContextFactory<AppDbContext> DbFactory
 @inject NavigationManager Nav
 @inject IJSRuntime JS
+@inject MandantKontext Kontext
 
-<PageTitle>Mandant bearbeiten</PageTitle>
+<PageTitle>@(_istAdmin ? "Mandant bearbeiten" : "Firmendaten")</PageTitle>
 
+@* Admins pflegen jeden Mandanten (Liste unter /mandanten); normale Benutzer als "Firmendaten" nur den eigenen. *@
 <div class="d-flex justify-content-between align-items-start">
-    <h1>Mandant @MandantNr</h1>
-    <button type="button" class="btn-close" aria-label="Schließen" @onclick='() => Nav.NavigateTo("/mandanten")'></button>
+    <h1>@(_istAdmin ? $"Mandant {MandantNr}" : "Firmendaten")</h1>
+    <button type="button" class="btn-close" aria-label="Schließen" @onclick='() => Nav.NavigateTo(_istAdmin ? "/mandanten" : "/")'></button>
 </div>
 
 @if (!string.IsNullOrEmpty(_meldung))
@@ -39,6 +40,10 @@
             <tr>
                 <td class="calc-label">Firmenname</td>
                 <td><input class="form-control form-control-sm" style="width: 420px;" maxlength="200" @bind="_mandant.Bezeichnung" /></td>
+            </tr>
+            <tr>
+                <td class="calc-label">Geschäftsführer</td>
+                <td><input class="form-control form-control-sm" style="width: 420px;" maxlength="200" @bind="_mandant.Geschaeftsfuehrer" /></td>
             </tr>
             <tr>
                 <td class="calc-label">Straße</td>
@@ -96,10 +101,13 @@
                 <td class="calc-label">Lucid ID</td>
                 <td><input class="form-control form-control-sm" style="width: 220px;" maxlength="20" placeholder="z. B. DE1234567890123456" @bind="_mandant.LucidId" /></td>
             </tr>
-            <tr>
-                <td class="calc-label">Aktiv</td>
-                <td style="text-align: left;"><input type="checkbox" class="form-check-input" @bind="_mandant.Aktiv" /></td>
-            </tr>
+            @if (_istAdmin)
+            {
+                <tr>
+                    <td class="calc-label">Aktiv</td>
+                    <td style="text-align: left;"><input type="checkbox" class="form-check-input" @bind="_mandant.Aktiv" /></td>
+                </tr>
+            }
         </tbody>
     </table>
     <button type="button" class="btn btn-primary mt-3" @onclick="Speichern">Speichern</button>
@@ -139,6 +147,9 @@
     [Parameter] public int MandantNr { get; set; }
 
     private Mandant? _mandant;
+    private bool _istAdmin;
+    // Admins dürfen jeden Mandanten bearbeiten, alle anderen nur den ihres Kontos.
+    private bool _erlaubt;
     private bool _hatLogo;
     private long _logoVersion;
     private string? _meldung;
@@ -157,6 +168,15 @@
 
     private async Task Laden()
     {
+        _istAdmin = await Kontext.IstAdminAsync();
+        _erlaubt = _istAdmin || await Kontext.GetMandantNrAsync() == MandantNr;
+        if (!_erlaubt)
+        {
+            // Wie "gibt es nicht": fremde Mandanten werden nicht preisgegeben.
+            _mandant = null;
+            return;
+        }
+
         await using var db = await DbFactory.CreateDbContextAsync();
         // Das Logo selbst wird nicht geladen, nur ob es existiert; die Bilddatei kommt über /mandant-logo.
         var daten = await db.Mandanten.AsNoTracking()
@@ -165,7 +185,7 @@
             {
                 Mandant = new Mandant
                 {
-                    MandantNr = m.MandantNr, Bezeichnung = m.Bezeichnung, Aktiv = m.Aktiv,
+                    MandantNr = m.MandantNr, Bezeichnung = m.Bezeichnung, Aktiv = m.Aktiv, Geschaeftsfuehrer = m.Geschaeftsfuehrer,
                     Strasse = m.Strasse, Plz = m.Plz, Ort = m.Ort, Land = m.Land,
                     HrNummer = m.HrNummer, Amtsgericht = m.Amtsgericht, EoriNummer = m.EoriNummer, LucidId = m.LucidId,
                     Steuernummer = m.Steuernummer,
@@ -184,7 +204,7 @@
     private async Task Speichern()
     {
         _meldung = _fehler = null;
-        if (_mandant is null) return;
+        if (_mandant is null || !_erlaubt) return;
 
         var bezeichnung = _mandant.Bezeichnung?.Trim() ?? "";
         if (bezeichnung.Length == 0)
@@ -242,7 +262,9 @@
         ziel.Bankname = NullWennLeer(_mandant.Bankname);
         ziel.Iban = iban;
         ziel.Bezeichnung = bezeichnung;
-        ziel.Aktiv = _mandant.Aktiv;
+        // Nur Admins (de)aktivieren Mandanten; das Feld ist für andere gar nicht sichtbar.
+        if (_istAdmin) ziel.Aktiv = _mandant.Aktiv;
+        ziel.Geschaeftsfuehrer = NullWennLeer(_mandant.Geschaeftsfuehrer);
         ziel.Strasse = NullWennLeer(_mandant.Strasse);
         ziel.Plz = plz;
         ziel.Ort = NullWennLeer(_mandant.Ort);
@@ -285,6 +307,8 @@
 
     private async Task LogoSpeichern(byte[]? daten, string? contentType)
     {
+        if (!_erlaubt) return;
+
         await using var db = await DbFactory.CreateDbContextAsync();
         var ziel = await db.Mandanten.FindAsync(MandantNr);
         if (ziel is null) return;

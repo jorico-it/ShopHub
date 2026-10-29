@@ -594,6 +594,10 @@ namespace ShopHub.Web.Migrations
                         .HasColumnType("datetime2(0)")
                         .HasDefaultValueSql("SYSUTCDATETIME()");
 
+                    b.Property<string>("Geschaeftsfuehrer")
+                        .HasMaxLength(200)
+                        .HasColumnType("nvarchar(200)");
+
                     b.Property<string>("HrNummer")
                         .HasMaxLength(50)
                         .HasColumnType("nvarchar(50)");
