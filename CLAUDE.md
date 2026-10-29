@@ -159,3 +159,10 @@ Beim Öffnen eines vorhandenen Artikels ist seine erste Variante (kleinste `Arti
 aufgeklappt; hat der Artikel noch keine, öffnet sich das Formular für die erste (SKU mit der Artikelnummer vorbelegt, auch direkt
 nach dem Anlegen eines neuen Artikels). Die erste Variante lässt sich nicht löschen (Schaltfläche gesperrt, zusätzlich
 Prüfung beim Löschen gegen die Datenbank).
+
+## Git
+
+Repository: `https://github.com/jorico-it/ShopHub` (privat), Branch `main`. Nach jeder abgeschlossenen Aufgabe wird
+committet und - bei fehlerfreiem Build - sofort gepusht (Commit-Nachrichten auf Deutsch, eine Migration gehört in denselben
+Commit wie der Code, der sie braucht). Nicht pushen bei rotem Build, halbfertiger Arbeit oder auf Wunsch ("noch nicht
+pushen"); nie `bin`, `obj`, `.vs` oder Zugangsdaten einchecken.
