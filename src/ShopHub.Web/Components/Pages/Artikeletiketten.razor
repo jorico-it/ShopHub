@@ -319,16 +319,14 @@
     private static readonly string[] StiftZusaetze = [" für bemalbare Kuscheltiere", " für bemalbare Tiere"];
 
     // Kurzname eines Bundle-Bestandteils: das Merkmal "Tiername" der Variante. Fehlt es, die Kurzbeschreibung des Artikels.
-    // Fehlt auch die, dient die Bezeichnung: bei "Bemalbares Kuscheltier Größe L, Einhorn" nur der Teil hinter dem Komma,
-    // bei den Stiften ohne den Zusatz "für bemalbare Kuscheltiere".
+    // Fehlt auch die, dient die Bezeichnung, bei den Stiften ohne den Zusatz "für bemalbare Kuscheltiere".
     private static string Bestandteilname(string bezeichnung, string? kurzbeschreibung, string? variantenname, string? variantenmerkmale)
     {
         var tiername = LeseMerkmal(variantenmerkmale, "Tiername");
         if (!string.IsNullOrWhiteSpace(tiername)) return tiername.Trim();
         if (!string.IsNullOrWhiteSpace(kurzbeschreibung)) return kurzbeschreibung.Trim();
 
-        var anzeigename = Anzeigename(bezeichnung, variantenname);
-        var name = anzeigename[(anzeigename.LastIndexOf(',') + 1)..].Trim();
+        var name = Anzeigename(bezeichnung, variantenname);
         foreach (var zusatz in StiftZusaetze)
         {
             name = name.Replace(zusatz, "", StringComparison.OrdinalIgnoreCase);
