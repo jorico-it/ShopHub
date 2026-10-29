@@ -197,6 +197,8 @@
             .FirstOrDefaultAsync();
 
         _mandant = daten?.Mandant;
+        // Gespeichert wird die IBAN ohne Leerzeichen, angezeigt in Vierergruppen.
+        if (_mandant is not null) _mandant.Iban = IbanGruppiert(_mandant.Iban);
         _hatLogo = daten?.HatLogo ?? false;
         _logoVersion = daten?.GeaendertAm.Ticks ?? 0;
     }
@@ -347,6 +349,10 @@
 
         return rest == 1;
     }
+
+    // "DE89370400440532013000" -> "DE89 3704 0044 0532 0130 00"
+    private static string? IbanGruppiert(string? iban) =>
+        string.IsNullOrEmpty(iban) ? iban : string.Join(' ', iban.Chunk(4).Select(g => new string(g)));
 
     // Nummern wie IBAN, USt-Id und EORI: ohne Leerzeichen, Großbuchstaben, leer = null.
     private static string? OhneLeerzeichen(string? text) =>
