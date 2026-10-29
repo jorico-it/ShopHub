@@ -137,7 +137,8 @@ Eine Datenbank unter SQL Server 2022 oder älter kennt den Typ `json` nicht.
 
 Artikelliste, Bestände und Artikeletiketten suchen gleich: Eingabefeld mit Platzhalter "Artikelnummer, Bezeichnung oder EAN", gesucht
 wird erst per Schaltfläche "Suchen" oder Eingabetaste (`_suche` = getippter Text, `_gesuchtNach` = Text der letzten Suche). Durchsucht
-werden Artikelnummer, Bezeichnung (bei Varianten auch der Variantenname) und EAN, nicht SKU oder Marke. Neue Suchen genauso bauen.
+werden Artikelnummer, Bezeichnung (bei Varianten auch der Variantenname) und EAN, nicht SKU oder Marke. Das Häkchen "nur aktive" ist
+überall standardmäßig gesetzt. Neue Suchen genauso bauen.
 
 ## Zahlentabellen
 
