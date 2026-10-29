@@ -282,7 +282,7 @@
                 .Where(v => v.MandantNr == mandantNr && bundleSkus.Contains(v.SKU))
                 .Select(v => new { v.SKU, v.Artikel!.Bezeichnung, v.Variantenname })
                 .ToListAsync())
-                .ToDictionary(v => v.SKU, v => Anzeigename(v.Bezeichnung, v.Variantenname), StringComparer.OrdinalIgnoreCase);
+                .ToDictionary(v => v.SKU, v => Bestandteilname(Anzeigename(v.Bezeichnung, v.Variantenname)), StringComparer.OrdinalIgnoreCase);
 
         _zeilen = treffer.Take(MaxZeilen).Select(t =>
         {
@@ -312,6 +312,16 @@
 
     private static string Anzeigename(string bezeichnung, string? variantenname) =>
         string.IsNullOrWhiteSpace(variantenname) ? bezeichnung : $"{bezeichnung} – {variantenname}";
+
+    private const string StiftZusatz = " für bemalbare Tiere";
+
+    // Kurzname eines Bundle-Bestandteils: bei "Bemalbares Tier Größe L, Einhorn" nur das Tier hinter dem Komma,
+    // bei den Stiften ohne den Zusatz "für bemalbare Tiere".
+    private static string Bestandteilname(string anzeigename)
+    {
+        var name = anzeigename[(anzeigename.LastIndexOf(',') + 1)..].Trim();
+        return name.Replace(StiftZusatz, "", StringComparison.OrdinalIgnoreCase).Trim();
+    }
 
     // BundleElemente ist ein JSON-Array [{"SKU":"B1008","Menge":1}]; ein nicht lesbarer Inhalt zählt als "kein Bundle".
     private static List<(string SKU, int Menge)> LeseBundleElemente(string? json)
