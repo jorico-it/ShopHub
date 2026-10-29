@@ -160,6 +160,15 @@ aufgeklappt; hat der Artikel noch keine, öffnet sich das Formular für die erst
 nach dem Anlegen eines neuen Artikels). Die erste Variante lässt sich nicht löschen (Schaltfläche gesperrt, zusätzlich
 Prüfung beim Löschen gegen die Datenbank).
 
+## Betrieb
+
+Live seit 2026-10-29 unter https://shophub.jorico.de (IIS auf dem IONOS-Server, Site und App-Pool `ShopHub`,
+Ordner `C:\inetpub\shophub`, Zertifikat über win-acme). Der Connection String liegt als Umgebungsvariable
+`ConnectionStrings__Default` am App-Pool (SQL-Login `shophub_app`, nur Lesen/Schreiben auf `Shopify`), nie in Dateien.
+Veröffentlicht wird per `dotnet publish` und Kopieren per Remotedesktop, Schritte und Fehlersuche in `Veroeffentlichung.md`.
+Schemaänderungen (Migrationen) laufen weiter vom Entwicklungsrechner, da `shophub_app` kein DDL darf. Das Absichern der
+Serverzugänge (Ports 1433/3389, Deploy-Konten) steht noch aus.
+
 ## Git
 
 Repository: `https://github.com/jorico-it/ShopHub` (privat), Branch `main`. Nach jeder abgeschlossenen Aufgabe wird

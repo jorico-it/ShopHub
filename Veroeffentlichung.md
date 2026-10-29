@@ -41,6 +41,10 @@ ALTER ROLE db_datareader ADD MEMBER [shophub_app];
 ALTER ROLE db_datawriter ADD MEMBER [shophub_app];
 ```
 
+Die SQL-Zeilen gehören in SSMS (neues Abfragefenster) und nicht in PowerShell. Alternativ in PowerShell mit `sqlcmd -S localhost -E -C -b -Q "..."`
+(CREATE LOGIN und CREATE USER in zwei Aufrufen, der zweite mit `-d Shopify`); das Passwort bleibt dabei in einer Variable und erscheint nicht auf dem Bildschirm.
+Das Passwort nie in den Chat einfügen. Ist es nicht mehr bekannt: `ALTER LOGIN [shophub_app] WITH PASSWORD = N'neu';` und Schritt 4.4 wiederholen.
+
 Die App braucht zur Laufzeit nur Lesen und Schreiben. Änderungen am Schema (Migrationen) laufen weiter vom Entwicklungsrechner.
 
 ## 4. Website auf dem Server (Remotedesktop)
@@ -57,11 +61,24 @@ Die App braucht zur Laufzeit nur Lesen und Schreiben. Änderungen am Schema (Mig
 ```
 
 Der Wert am App-Pool überstimmt die maschinenweite Variable `ConnectionStrings__Default` (die zeigt auf die Datenbank `Jorico`).
+Gibt es den Eintrag schon (Passwort ändern), ihn zuerst entfernen, sonst meldet `appcmd` einen doppelten Eintrag:
+
+```powershell
+& "$env:windir\system32\inetsrv\appcmd.exe" set config -section:system.applicationHost/applicationPools "/-[name='ShopHub'].environmentVariables.[name='ConnectionStrings__Default']" /commit:apphost
+```
+
+5. IIS-Manager > Anwendungspools > `ShopHub` > Erweiterte Einstellungen > Prozessmodell > **Benutzerprofil laden = True**
+   (englisch: Load User Profile). Sonst liegen die Schlüssel für das Anmelde-Cookie nur im Arbeitsspeicher und alle Benutzer sind nach
+   jedem Neustart des Pools abgemeldet. Pool danach neu starten.
 
 ## 5. HTTPS-Zertifikat (win-acme)
 
-`C:\win-acme\wacs.exe` als Administrator starten: neues Zertifikat (N) > Bindung aus IIS > Site `ShopHub` (`shophub.jorico.de`) >
-weiter mit den Vorgaben. win-acme legt die HTTPS-Bindung an und nimmt das Zertifikat in die bestehende Erneuerungsaufgabe auf.
+Vorher `nslookup shophub.jorico.de 8.8.8.8` prüfen: nur `87.106.137.233`, **kein** AAAA-Eintrag (IONOS legt teils Standardeinträge auf
+`217.160.0.34` und eine IPv6-Adresse an; beide ändern bzw. löschen).
+
+`C:\win-acme\wacs.exe` als Administrator starten (Version 2.2.9): `N` (Create certificate, default settings) > Site-Nummer von `ShopHub`
+eingeben (nicht leer lassen, sonst werden alle Sites gescannt) > Enter für die Bindung `shophub.jorico.de` > `y` > `Q`.
+win-acme legt die HTTPS-Bindung an und nimmt das Zertifikat in die bestehende Erneuerungsaufgabe auf.
 Die HTTP-Weiterleitung in `web.config` lässt die Prüfpfade (`/.well-known/acme-challenge/`) ausdrücklich durch.
 
 ## 6. Abnahme
@@ -75,6 +92,9 @@ Die HTTP-Weiterleitung in `web.config` lässt die Prüfpfade (`/.well-known/acme
 Fehlersuche: Ereignisanzeige > Windows-Protokolle > Anwendung (Quelle `IIS AspNetCore Module V2`). HTTP-Fehler 500.30 = App startet nicht
 (meist Connection String oder fehlende Laufzeit); 500.19 = `web.config` unlesbar (URL-Rewrite-Modul fehlt).
 WebSocket-Protokoll muss als IIS-Rolle installiert sein (Blazor Server).
+`Login failed for user 'shophub_app'` (Fehler 18456) = Passwort im Connection String stimmt nicht mit dem Login überein: `ALTER LOGIN`
+und Schritt 4.4 wiederholen. Zum Prüfen nicht `curl -I` (HEAD) verwenden, das liefert für `/login` eine Umleitung; stattdessen
+`curl.exe -s -o NUL -w "%{http_code}`n" https://shophub.jorico.de/login` (erwartet 200) oder den Browser.
 
 ## Spätere Aktualisierungen
 
