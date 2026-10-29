@@ -313,14 +313,19 @@
     private static string Anzeigename(string bezeichnung, string? variantenname) =>
         string.IsNullOrWhiteSpace(variantenname) ? bezeichnung : $"{bezeichnung} – {variantenname}";
 
-    private const string StiftZusatz = " für bemalbare Tiere";
+    private static readonly string[] StiftZusaetze = [" für bemalbare Kuscheltiere", " für bemalbare Tiere"];
 
-    // Kurzname eines Bundle-Bestandteils: bei "Bemalbares Tier Größe L, Einhorn" nur das Tier hinter dem Komma,
-    // bei den Stiften ohne den Zusatz "für bemalbare Tiere".
+    // Kurzname eines Bundle-Bestandteils: bei "Bemalbares Kuscheltier Größe L, Einhorn" nur das Tier hinter dem Komma,
+    // bei den Stiften ohne den Zusatz "für bemalbare Kuscheltiere".
     private static string Bestandteilname(string anzeigename)
     {
         var name = anzeigename[(anzeigename.LastIndexOf(',') + 1)..].Trim();
-        return name.Replace(StiftZusatz, "", StringComparison.OrdinalIgnoreCase).Trim();
+        foreach (var zusatz in StiftZusaetze)
+        {
+            name = name.Replace(zusatz, "", StringComparison.OrdinalIgnoreCase);
+        }
+
+        return name.Trim();
     }
 
     // BundleElemente ist ein JSON-Array [{"SKU":"B1008","Menge":1}]; ein nicht lesbarer Inhalt zählt als "kein Bundle".
