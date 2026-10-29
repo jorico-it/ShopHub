@@ -35,22 +35,11 @@
                     <td class="calc-label">Höhe (mm)</td>
                     <td><input type="number" class="form-control form-control-sm" style="width: 110px; text-align: right;" min="@MinMm" max="@MaxMm" @bind="_hoeheMm" /></td>
                 </tr>
-                <tr>
-                    <td class="calc-label">Strichbreite des Barcodes (mm)</td>
-                    <td>
-                        <input type="number" class="form-control form-control-sm" style="width: 110px; text-align: right;"
-                               min="@GtinBarcode.MinModulbreiteMm.ToString(Invariant)" max="@GtinBarcode.MaxModulbreiteMm.ToString(Invariant)" step="0.001" @bind="_modulbreiteMm" />
-                    </td>
-                </tr>
             </tbody>
         </table>
-        <div class="text-muted mt-2">
-            Strichbreite = Breite des schmalsten Strichs und der schmalsten Lücke. Norm (GS1): 0,264 bis 0,66 mm, normal 0,33 mm.
-            Für scharfe Striche ein ganzes Vielfaches eines Druckerpunkts wählen, z. B. 0,375 mm (3 Punkte bei 203 dpi) oder 0,339 mm (4 Punkte bei 300 dpi).
-        </div>
         @if (BarcodeZuBreit)
         {
-            <div class="text-danger mt-2">Der Barcode ist mit dieser Strichbreite breiter als das Etikett - bitte Strichbreite oder Etikettenbreite anpassen.</div>
+            <div class="text-danger mt-2">Der Barcode ist breiter als das Etikett - bitte die Etikettenbreite anpassen.</div>
         }
     </div>
 
@@ -166,7 +155,7 @@
                         }
                     </div>
                     <div class="etikett-code">
-                        <div class="etikett-barcode"><BarcodeSvg Module="z.Module" ModulbreiteMm="_modulbreiteMm" /></div>
+                        <div class="etikett-barcode"><BarcodeSvg Module="z.Module" ModulbreiteMm="Strichbreite" /></div>
                         <div class="etikett-gtin" style="@GtinStil(z.Module.Length)">
                             @foreach (var ziffer in z.GTIN)
                             {
@@ -190,7 +179,6 @@
     private const int VorschauAnzahl = 3;
 
     private static readonly CultureInfo German = CultureInfo.GetCultureInfo("de-DE");
-    private static readonly CultureInfo Invariant = CultureInfo.InvariantCulture;
 
     private sealed class Zeile
     {
@@ -217,7 +205,6 @@
     private string _suche = "";
     private bool _nurAktive = true;
     private bool _abgeschnitten;
-    private decimal _modulbreiteMm = GtinBarcode.NominaleModulbreiteMm;
     private int _breiteMm = 152;
     private int _hoeheMm = 103;
 

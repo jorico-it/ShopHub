@@ -8,16 +8,18 @@ public partial class Artikeletiketten
     // Schrift und Abstände wachsen mit der Etikettengröße (Grundlage 60 x 30 mm).
     private double Faktor => Math.Min(Math.Clamp(_breiteMm, MinMm, MaxMm) / 60.0, Math.Clamp(_hoeheMm, MinMm, MaxMm) / 30.0);
 
+    // Breite des schmalsten Strichs und der schmalsten Lücke: fest die Norm-Breite 0,33 mm (GS1), nicht einstellbar.
+    private const decimal Strichbreite = GtinBarcode.NominaleModulbreiteMm;
+
     // Der Barcode (mit Ruhezonen, EAN-13) ist breiter als der nutzbare Platz auf dem Etikett.
     private bool BarcodeZuBreit =>
-        (double)(GtinBarcode.GesamtModule(95) * Math.Clamp(_modulbreiteMm, GtinBarcode.MinModulbreiteMm, GtinBarcode.MaxModulbreiteMm))
-        > Math.Clamp(_breiteMm, MinMm, MaxMm) - 2 * 1.5 * Faktor;
+        (double)(GtinBarcode.GesamtModule(95) * Strichbreite) > Math.Clamp(_breiteMm, MinMm, MaxMm) - 2 * 1.5 * Faktor;
 
     // Die Ziffern unter dem Barcode sind genau so breit wie die Striche (ohne Ruhezonen) und gleichmäßig verteilt;
     // die Schrift richtet sich nach der Strichbreite (etwa 7,6 Modulbreiten hoch, dann passt jede Ziffer in ihr Raster).
     private string GtinStil(int moduleAnzahl)
     {
-        var modul = Math.Clamp(_modulbreiteMm, GtinBarcode.MinModulbreiteMm, GtinBarcode.MaxModulbreiteMm);
+        var modul = Strichbreite;
         // Der Barcode steht rechtsbündig samt rechter Ruhezone; die Ziffernzeile endet daher um die Ruhezone
         // (EAN-13: 7 Module) vor dem rechten Rand, genau unter dem letzten Strich.
         var (_, ruheRechts) = GtinBarcode.Ruhezonen(moduleAnzahl);
