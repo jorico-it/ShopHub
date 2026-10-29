@@ -1,0 +1,728 @@
+@page "/artikel-bearbeiten"
+@page "/artikel-bearbeiten/{ArtikelId:int}"
+@using System.Globalization
+@using System.Text.Json
+@using Microsoft.EntityFrameworkCore
+@using ShopifySQL.Web.Data
+@using ShopifySQL.Web.Models
+@using ShopifySQL.Web.Services
+@inherits MandantSeite
+@rendermode InteractiveServer
+@inject IDbContextFactory<AppDbContext> DbFactory
+@inject NavigationManager Nav
+@inject IJSRuntime JS
+
+<PageTitle>@(ArtikelId is null ? "Neuer Artikel" : "Artikel bearbeiten")</PageTitle>
+
+<div class="d-flex justify-content-between align-items-start">
+    <h1>@(ArtikelId is null ? "Neuer Artikel" : $"Artikel {_artikel.Artikelnummer}")</h1>
+    <button type="button" class="btn-close" aria-label="Schließen" @onclick='() => Nav.NavigateTo("/artikel")'></button>
+</div>
+
+@if (MandantNr is null)
+{
+    <div class="alert alert-warning">Dem Konto ist kein Mandant zugeordnet.</div>
+    return;
+}
+
+@if (!string.IsNullOrEmpty(_meldung))
+{
+    <div class="alert alert-success">@_meldung</div>
+}
+@if (!string.IsNullOrEmpty(_fehler))
+{
+    <div class="alert alert-danger" style="white-space: pre-wrap;">@_fehler</div>
+}
+
+<div class="border rounded p-3 mb-3">
+    <h5>Stammdaten</h5>
+    <table class="table table-sm calc-table mb-0" style="width: auto;">
+        <tbody>
+            <tr>
+                <td class="calc-label">Artikelnummer</td>
+                <td><input class="form-control form-control-sm" style="width: 220px;" maxlength="50" @bind="_artikel.Artikelnummer" /></td>
+            </tr>
+            <tr>
+                <td class="calc-label">Bezeichnung</td>
+                <td><input class="form-control form-control-sm" style="width: 420px;" maxlength="200" @bind="_artikel.Bezeichnung" /></td>
+            </tr>
+            <tr>
+                <td class="calc-label">Marke</td>
+                <td>
+                    <select class="form-select form-select-sm" style="width: 280px;" @bind="_artikel.MarkeID">
+                        <option value="">– keine Marke –</option>
+                        @foreach (var m in _marken)
+                        {
+                            <option value="@m.MarkeID">@m.Markenname@(m.Aktiv ? "" : " (inaktiv)")</option>
+                        }
+                    </select>
+                </td>
+            </tr>
+            <tr>
+                <td class="calc-label">Kurzbeschreibung</td>
+                <td><input class="form-control form-control-sm" style="width: 520px;" maxlength="500" @bind="_artikel.Kurzbeschreibung" /></td>
+            </tr>
+            <tr>
+                <td class="calc-label">Beschreibung</td>
+                <td><textarea class="form-control form-control-sm" style="width: 520px;" rows="5" @bind="_artikel.Beschreibung"></textarea></td>
+            </tr>
+            <tr>
+                <td class="calc-label">Mehrwertsteuersatz (%)</td>
+                <td><GermanNumberInput TValue="decimal" @bind-Value="_artikel.Mehrwertsteuersatz" /></td>
+            </tr>
+            <tr>
+                <td class="calc-label">Aktiv</td>
+                <td style="text-align: left;"><input type="checkbox" class="form-check-input" @bind="_artikel.Aktiv" /></td>
+            </tr>
+        </tbody>
+    </table>
+    <button type="button" class="btn btn-primary mt-3" @onclick="ArtikelSpeichern">Speichern</button>
+</div>
+
+@if (ArtikelId is not null)
+{
+    <div class="border rounded p-3 mb-3">
+        <h5>Varianten</h5>
+        @if (_varianten.Count == 0)
+        {
+            <p class="text-muted">Noch keine Varianten angelegt.</p>
+        }
+        else
+        {
+            <div class="table-responsive">
+                <table class="table table-sm calc-table mb-0" style="width: auto;">
+                    <thead>
+                        <tr>
+                            <th>SKU</th>
+                            <th>EAN</th>
+                            <th>Variantenname</th>
+                            <th class="text-end">VK brutto (€)</th>
+                            <th class="text-end">EK netto (€)</th>
+                            <th class="text-end">Gewicht (g)</th>
+                            <th>Aktiv</th>
+                            <th></th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        @foreach (var v in _varianten)
+                        {
+                            <tr>
+                                <td style="text-align: left;">@v.SKU</td>
+                                <td style="text-align: left;">@v.GTIN</td>
+                                <td style="text-align: left;">@v.Variantenname</td>
+                                <td class="text-end">@v.VerkaufspreisBrutto.ToString("N2", German)</td>
+                                <td class="text-end">@(v.EinkaufspreisNetto?.ToString("N2", German))</td>
+                                <td class="text-end">@(v.GewichtGramm?.ToString("N0", German))</td>
+                                <td style="text-align: left;">@(v.Aktiv ? "ja" : "nein")</td>
+                                <td>
+                                    <button type="button" class="btn btn-sm btn-outline-primary" @onclick="() => VarianteBearbeiten(v)">Bearbeiten</button>
+                                    <button type="button" class="btn btn-sm btn-outline-danger" @onclick="() => VarianteLoeschen(v)"
+                                            disabled="@(v.ArtikelvarianteID == _ersteVarianteId)"
+                                            title="@(v.ArtikelvarianteID == _ersteVarianteId ? "Die erste Variante kann nicht gelöscht werden." : null)">Löschen</button>
+                                </td>
+                            </tr>
+                        }
+                    </tbody>
+                </table>
+            </div>
+        }
+        <button type="button" class="btn btn-primary mt-3" @onclick="NeueVariante">Neue Variante</button>
+    </div>
+
+    @if (_variante is not null)
+    {
+        <div class="border rounded p-3 mb-3">
+            <h5>@(_variante.ArtikelvarianteID == 0 ? "Neue Variante" : $"Variante {_variante.SKU}")</h5>
+            <table class="table table-sm calc-table mb-0" style="width: auto;">
+                <tbody>
+                    <tr>
+                        <td class="calc-label">SKU</td>
+                        <td><input class="form-control form-control-sm" style="width: 220px;" maxlength="50" @bind="_variante.SKU" /></td>
+                    </tr>
+                    <tr>
+                        <td class="calc-label">EAN</td>
+                        <td><input class="form-control form-control-sm" style="width: 220px;" maxlength="14" inputmode="numeric" @bind="_variante.GTIN" /></td>
+                    </tr>
+                    <tr>
+                        <td class="calc-label">Variantenname</td>
+                        <td><input class="form-control form-control-sm" style="width: 420px;" maxlength="200" @bind="_variante.Variantenname" /></td>
+                    </tr>
+                    <tr>
+                        <td class="calc-label" style="vertical-align: top; padding-top: 6px;">Variantenmerkmale</td>
+                        <td style="text-align: left; height: auto; padding-top: 4px; padding-bottom: 4px;">
+                            @foreach (var merkmal in _merkmaleZeilen)
+                            {
+                                <div class="d-flex align-items-center gap-2 mb-1">
+                                    <input class="form-control form-control-sm" style="width: 160px;" maxlength="100" list="merkmal-namen-liste" placeholder="Merkmal, z. B. Farbe" @bind="merkmal.Name" />
+                                    <input class="form-control form-control-sm" style="width: 220px;" maxlength="200" placeholder="Wert, z. B. Blau" @bind="merkmal.Wert" />
+                                    <button type="button" class="btn btn-sm btn-outline-danger" title="Merkmal entfernen" @onclick="() => _merkmaleZeilen.Remove(merkmal)">×</button>
+                                </div>
+                            }
+                            <button type="button" class="btn btn-sm btn-outline-primary" @onclick="NeuesMerkmal">+ Merkmal hinzufügen</button>
+                            <datalist id="merkmal-namen-liste">
+                                @foreach (var name in _merkmalNamen)
+                                {
+                                    <option value="@name"></option>
+                                }
+                            </datalist>
+                        </td>
+                    </tr>
+                    <tr>
+                        <td class="calc-label">Amazon ASIN</td>
+                        <td><input class="form-control form-control-sm" style="width: 160px; text-transform: uppercase;" maxlength="10" placeholder="z. B. B08N5WRWNW" @bind="_variante.AmazonAsin" /></td>
+                    </tr>
+                    <tr>
+                        <td class="calc-label">Lieferant</td>
+                        <td><input class="form-control form-control-sm" style="width: 320px;" maxlength="200" @bind="_variante.Lieferant" /></td>
+                    </tr>
+                    <tr>
+                        <td class="calc-label">SKU Lieferant</td>
+                        <td><input class="form-control form-control-sm" style="width: 220px;" maxlength="50" @bind="_variante.SkuLieferant" /></td>
+                    </tr>
+                    <tr>
+                        <td class="calc-label">HS Code</td>
+                        <td><input class="form-control form-control-sm" style="width: 160px;" maxlength="20" inputmode="numeric" data-eingabefilter="ziffern" @bind="_variante.HsCode" /></td>
+                    </tr>
+                    <tr>
+                        <td class="calc-label">Ursprungsland (ISO, z. B. CN)</td>
+                        <td><input class="form-control form-control-sm" style="width: 70px; text-transform: uppercase;" maxlength="2" @bind="_variante.Ursprungsland" /></td>
+                    </tr>
+                    <tr>
+                        <td class="calc-label">Produkthöhe</td>
+                        <td><input class="form-control form-control-sm" style="width: 110px; text-align: right;" maxlength="9" inputmode="numeric" data-eingabefilter="ziffern" @bind="_variante.ProduktHoehe" /></td>
+                    </tr>
+                    <tr>
+                        <td class="calc-label">Produktlänge</td>
+                        <td><input class="form-control form-control-sm" style="width: 110px; text-align: right;" maxlength="9" inputmode="numeric" data-eingabefilter="ziffern" @bind="_variante.ProduktLaenge" /></td>
+                    </tr>
+                    <tr>
+                        <td class="calc-label" style="vertical-align: top; padding-top: 6px;">Bundle-Elemente</td>
+                        <td style="text-align: left; height: auto; padding-top: 4px; padding-bottom: 4px;">
+                            @foreach (var element in _bundleZeilen)
+                            {
+                                <div class="d-flex align-items-center gap-2 mb-1">
+                                    <input class="form-control form-control-sm" style="width: 160px;" maxlength="50" list="bundle-sku-liste" placeholder="SKU" @bind="element.SKU" />
+                                    <input type="number" class="form-control form-control-sm" style="width: 70px; text-align: right;" min="1" title="Menge" @bind="element.Menge" />
+                                    <span class="text-muted">@BundleBezeichnung(element.SKU)</span>
+                                    <button type="button" class="btn btn-sm btn-outline-danger" title="Element entfernen" @onclick="() => _bundleZeilen.Remove(element)">×</button>
+                                </div>
+                            }
+                            <button type="button" class="btn btn-sm btn-outline-primary" @onclick="NeuesBundleElement">+ Element hinzufügen</button>
+                            <datalist id="bundle-sku-liste">
+                                @foreach (var eintrag in _skuListe)
+                                {
+                                    <option value="@eintrag.SKU">@eintrag.Bezeichnung</option>
+                                }
+                            </datalist>
+                        </td>
+                    </tr>
+                    <tr>
+                        <td class="calc-label">Verkaufspreis brutto (€)</td>
+                        <td><GermanNumberInput TValue="decimal" @bind-Value="_variante.VerkaufspreisBrutto" /></td>
+                    </tr>
+                    <tr>
+                        <td class="calc-label">Einkaufspreis netto (€)</td>
+                        <td>
+                            <input class="form-control form-control-sm" style="width: 110px; text-align: right;" inputmode="decimal"
+                                   data-german-number-input @bind="_einkaufspreisText" />
+                        </td>
+                    </tr>
+                    <tr>
+                        <td class="calc-label">Gewicht (g)</td>
+                        <td>
+                            <input class="form-control form-control-sm" style="width: 110px; text-align: right;" maxlength="9" inputmode="numeric"
+                                   data-eingabefilter="ziffern" @bind="_gewichtText" />
+                        </td>
+                    </tr>
+                    <tr>
+                        <td class="calc-label">Aktiv</td>
+                        <td style="text-align: left;"><input type="checkbox" class="form-check-input" @bind="_variante.Aktiv" /></td>
+                    </tr>
+                </tbody>
+            </table>
+            <button type="button" class="btn btn-primary mt-3" @onclick="VarianteSpeichern">Variante speichern</button>
+            <button type="button" class="btn btn-outline-secondary mt-3" @onclick="() => _variante = null">Abbrechen</button>
+        </div>
+    }
+}
+
+@code {
+    private static readonly CultureInfo German = CultureInfo.GetCultureInfo("de-DE");
+
+    [Parameter] public int? ArtikelId { get; set; }
+
+    private Artikel _artikel = new();
+    private List<Marke> _marken = [];
+    private List<Artikelvariante> _varianten = [];
+
+    // Bundle-Elemente der gerade bearbeiteten Variante als Tabelle; gespeichert wird daraus das JSON-Array in
+    // Artikelvariante.BundleElemente. _skuListe liefert die Vorschläge (alle Varianten des Mandanten).
+    private sealed class BundleZeile
+    {
+        public string SKU { get; set; } = "";
+        public int Menge { get; set; } = 1;
+    }
+
+    private sealed record SkuEintrag(string SKU, string Bezeichnung);
+
+    // Variantenmerkmale der gerade bearbeiteten Variante als Tabelle (Merkmal/Wert); gespeichert wird daraus das
+    // JSON-Objekt in Artikelvariante.Variantenmerkmale. _merkmalNamen schlägt die im Mandanten schon verwendeten Merkmale vor.
+    private sealed class MerkmalZeile
+    {
+        public string Name { get; set; } = "";
+        public string Wert { get; set; } = "";
+    }
+
+    private List<MerkmalZeile> _merkmaleZeilen = [];
+    private List<string> _merkmalNamen = [];
+    private int _ersteVarianteId;
+
+    private List<BundleZeile> _bundleZeilen = [];
+    private List<SkuEintrag> _skuListe = [];
+    private Artikelvariante? _variante;
+    private string _einkaufspreisText = "";
+    private string _gewichtText = "";
+    private string? _meldung;
+    private string? _fehler;
+
+    protected override async Task LadeAsync()
+    {
+        if (MandantNr is not { } mandantNr) return;
+
+        await using var db = await DbFactory.CreateDbContextAsync();
+        if (ArtikelId is { } id)
+        {
+            // Nach einem Mandantenwechsel gehört der Artikel nicht mehr zum aktuellen Mandanten.
+            var artikel = await db.Artikel.AsNoTracking().FirstOrDefaultAsync(a => a.ArtikelID == id && a.MandantNr == mandantNr);
+            if (artikel is null)
+            {
+                Nav.NavigateTo("/artikel");
+                return;
+            }
+
+            _artikel = artikel;
+            _varianten = await db.Artikelvarianten.AsNoTracking()
+                .Where(v => v.ArtikelID == id && v.MandantNr == mandantNr)
+                .OrderBy(v => v.SKU)
+                .ToListAsync();
+            // Die erste (zuerst angelegte) Variante bleibt immer erhalten.
+            _ersteVarianteId = _varianten.Count == 0 ? 0 : _varianten.Min(v => v.ArtikelvarianteID);
+        }
+
+        _merkmalNamen = (await db.Artikelvarianten.AsNoTracking()
+                .Where(v => v.MandantNr == mandantNr)
+                .Select(v => v.Variantenmerkmale)
+                .Take(5000)
+                .ToListAsync())
+            .SelectMany(json => LeseMerkmaleZeilen(json).Select(z => z.Name))
+            .Distinct(StringComparer.OrdinalIgnoreCase)
+            .Order(StringComparer.OrdinalIgnoreCase)
+            .ToList();
+
+        _skuListe = (await db.Artikelvarianten.AsNoTracking()
+                .Where(v => v.MandantNr == mandantNr)
+                .OrderBy(v => v.SKU)
+                .Select(v => new { v.SKU, v.Artikel!.Bezeichnung, v.Variantenname })
+                .Take(5000)
+                .ToListAsync())
+            .Select(v => new SkuEintrag(v.SKU, string.IsNullOrWhiteSpace(v.Variantenname) ? v.Bezeichnung : $"{v.Bezeichnung} – {v.Variantenname}"))
+            .ToList();
+
+        var markeId = _artikel.MarkeID;
+        _marken = await db.Marken.AsNoTracking()
+            .Where(m => m.MandantNr == mandantNr && (m.Aktiv || m.MarkeID == markeId))
+            .OrderBy(m => m.Markenname)
+            .ToListAsync();
+    }
+
+    protected override async Task OnInitializedAsync()
+    {
+        await base.OnInitializedAsync();
+        ErsteVarianteOeffnen();
+    }
+
+    // Beim Öffnen eines vorhandenen Artikels ist seine erste Variante gleich zur Bearbeitung aufgeklappt; hat der
+    // Artikel noch keine, wird die erste angelegt (SKU vorbelegt mit der Artikelnummer).
+    private void ErsteVarianteOeffnen()
+    {
+        if (ArtikelId is null) return;
+
+        if (_varianten.Count > 0)
+        {
+            VarianteBearbeiten(_varianten.First(v => v.ArtikelvarianteID == _ersteVarianteId));
+        }
+        else
+        {
+            NeueVariante();
+            _variante!.SKU = _artikel.Artikelnummer;
+        }
+    }
+
+    protected override async Task OnAfterRenderAsync(bool firstRender)
+    {
+        if (firstRender)
+        {
+            // Pfeil hoch/runter springt zwischen den Zahlenfeldern (wie in der Marktanalyse-App).
+            var module = await JS.InvokeAsync<IJSObjectReference>("import", "/js/germanNumberInputNav.js");
+            await module.InvokeVoidAsync("init");
+
+            var filter = await JS.InvokeAsync<IJSObjectReference>("import", "/js/eingabefilter.js");
+            await filter.InvokeVoidAsync("init");
+        }
+    }
+
+    private async Task ArtikelSpeichern()
+    {
+        _meldung = _fehler = null;
+        if (MandantNr is not { } mandantNr) return;
+
+        _artikel.Artikelnummer = _artikel.Artikelnummer.Trim();
+        _artikel.Bezeichnung = _artikel.Bezeichnung.Trim();
+        _artikel.Kurzbeschreibung = LeerZuNull(_artikel.Kurzbeschreibung);
+        _artikel.Beschreibung = LeerZuNull(_artikel.Beschreibung);
+
+        if (_artikel.Artikelnummer.Length == 0 || _artikel.Bezeichnung.Length == 0)
+        {
+            _fehler = "Bitte Artikelnummer und Bezeichnung eingeben.";
+            return;
+        }
+
+        if (_artikel.Mehrwertsteuersatz is < 0 or > 100)
+        {
+            _fehler = "Der Mehrwertsteuersatz muss zwischen 0 und 100 liegen.";
+            return;
+        }
+
+        await using var db = await DbFactory.CreateDbContextAsync();
+        var neu = ArtikelId is null;
+        if (neu)
+        {
+            _artikel.MandantNr = mandantNr;
+            db.Artikel.Add(_artikel);
+        }
+        else
+        {
+            db.Entry(_artikel).State = EntityState.Modified;
+        }
+
+        try
+        {
+            await db.SaveChangesAsync();
+        }
+        catch (DbUpdateException ex) when (DbFehler.IstEindeutigkeitsverletzung(ex))
+        {
+            _fehler = $"Die Artikelnummer \"{_artikel.Artikelnummer}\" gibt es bereits.";
+            db.Entry(_artikel).State = EntityState.Detached;
+            return;
+        }
+
+        if (neu)
+        {
+            // Ein neuer Artikel braucht seine erste Variante: das Formular dafür ist auf der Folgeseite gleich offen.
+            NeueVariante();
+            _variante!.SKU = _artikel.Artikelnummer;
+            Nav.NavigateTo($"/artikel-bearbeiten/{_artikel.ArtikelID}");
+            return;
+        }
+
+        _meldung = "Artikel gespeichert.";
+        await LadeAsync();
+    }
+
+    private void NeueVariante()
+    {
+        _meldung = _fehler = null;
+        _variante = new Artikelvariante { MandantNr = _artikel.MandantNr, ArtikelID = _artikel.ArtikelID };
+        _einkaufspreisText = "";
+        _gewichtText = "";
+        _bundleZeilen = [];
+        _merkmaleZeilen = [];
+    }
+
+    private void NeuesBundleElement() => _bundleZeilen.Add(new BundleZeile());
+
+    private void NeuesMerkmal() => _merkmaleZeilen.Add(new MerkmalZeile());
+
+    private static List<MerkmalZeile> LeseMerkmaleZeilen(string? json)
+    {
+        var zeilen = new List<MerkmalZeile>();
+        if (string.IsNullOrWhiteSpace(json)) return zeilen;
+
+        try
+        {
+            using var dokument = JsonDocument.Parse(json);
+            if (dokument.RootElement.ValueKind != JsonValueKind.Object) return zeilen;
+
+            foreach (var eigenschaft in dokument.RootElement.EnumerateObject())
+            {
+                // Werte, die keine Texte sind (Zahl, true), erscheinen als ihr JSON-Text.
+                zeilen.Add(new MerkmalZeile
+                {
+                    Name = eigenschaft.Name,
+                    Wert = eigenschaft.Value.ValueKind == JsonValueKind.String ? eigenschaft.Value.GetString() ?? "" : eigenschaft.Value.GetRawText(),
+                });
+            }
+        }
+        catch (JsonException)
+        {
+            // Ein nicht lesbarer Altbestand wird beim Speichern durch die Tabelle ersetzt.
+        }
+
+        return zeilen;
+    }
+
+    // Variantenmerkmale: aus der Tabelle wird das JSON-Objekt {"Merkmal": "Wert"} erzeugt. Leere Zeilen entfallen;
+    // jedes Merkmal braucht Name und Wert, und ein Name darf nur einmal vorkommen. Ohne Zeilen bleibt es {}.
+    private string? UebernehmeMerkmale()
+    {
+        if (_variante is null) return null;
+
+        var zeilen = _merkmaleZeilen
+            .Select(z => (Name: z.Name.Trim(), Wert: z.Wert.Trim()))
+            .Where(z => z.Name.Length > 0 || z.Wert.Length > 0)
+            .ToList();
+        if (zeilen.Any(z => z.Name.Length == 0)) return "Bitte bei jedem Wert ein Merkmal (z. B. Farbe) angeben.";
+        if (zeilen.Any(z => z.Wert.Length == 0)) return "Bitte bei jedem Merkmal einen Wert angeben.";
+
+        var doppelt = zeilen.GroupBy(z => z.Name, StringComparer.OrdinalIgnoreCase).FirstOrDefault(g => g.Count() > 1);
+        if (doppelt is not null) return $"Das Merkmal \"{doppelt.Key}\" kommt mehrfach vor.";
+
+        _variante.Variantenmerkmale = JsonSerializer.Serialize(
+            zeilen.ToDictionary(z => z.Name, z => z.Wert),
+            new JsonSerializerOptions { Encoder = System.Text.Encodings.Web.JavaScriptEncoder.UnsafeRelaxedJsonEscaping });
+        return null;
+    }
+
+    private string BundleBezeichnung(string sku) =>
+        _skuListe.FirstOrDefault(e => e.SKU.Equals(sku.Trim(), StringComparison.OrdinalIgnoreCase))?.Bezeichnung ?? "";
+
+    private static List<BundleZeile> LeseBundleZeilen(string? json)
+    {
+        var zeilen = new List<BundleZeile>();
+        if (string.IsNullOrWhiteSpace(json)) return zeilen;
+
+        try
+        {
+            using var dokument = JsonDocument.Parse(json);
+            foreach (var element in dokument.RootElement.EnumerateArray())
+            {
+                zeilen.Add(new BundleZeile
+                {
+                    SKU = element.GetProperty("SKU").GetString() ?? "",
+                    Menge = element.GetProperty("Menge").GetInt32(),
+                });
+            }
+        }
+        catch (Exception ex) when (ex is JsonException or InvalidOperationException or KeyNotFoundException or FormatException)
+        {
+            // Ein nicht lesbarer Altbestand wird beim Speichern durch die Tabelle ersetzt.
+        }
+
+        return zeilen;
+    }
+
+    private void VarianteBearbeiten(Artikelvariante v)
+    {
+        _meldung = _fehler = null;
+        _variante = new Artikelvariante
+        {
+            ArtikelvarianteID = v.ArtikelvarianteID,
+            MandantNr = v.MandantNr,
+            ArtikelID = v.ArtikelID,
+            SKU = v.SKU,
+            GTIN = v.GTIN,
+            Variantenname = v.Variantenname,
+            Variantenmerkmale = v.Variantenmerkmale,
+            AmazonAsin = v.AmazonAsin,
+            Lieferant = v.Lieferant,
+            SkuLieferant = v.SkuLieferant,
+            HsCode = v.HsCode,
+            Ursprungsland = v.Ursprungsland,
+            ProduktHoehe = v.ProduktHoehe,
+            ProduktLaenge = v.ProduktLaenge,
+            BundleElemente = v.BundleElemente,
+            VerkaufspreisBrutto = v.VerkaufspreisBrutto,
+            EinkaufspreisNetto = v.EinkaufspreisNetto,
+            GewichtGramm = v.GewichtGramm,
+            Aktiv = v.Aktiv,
+            ErstelltAm = v.ErstelltAm,
+            GeaendertAm = v.GeaendertAm,
+        };
+        _bundleZeilen = LeseBundleZeilen(v.BundleElemente);
+        _merkmaleZeilen = LeseMerkmaleZeilen(v.Variantenmerkmale);
+        _einkaufspreisText = v.EinkaufspreisNetto?.ToString("N2", German) ?? "";
+        _gewichtText = v.GewichtGramm?.ToString("0", German) ?? "";
+    }
+
+    private async Task VarianteSpeichern()
+    {
+        _meldung = _fehler = null;
+        if (_variante is null || MandantNr is not { } mandantNr) return;
+
+        _variante.SKU = _variante.SKU.Trim();
+        _variante.GTIN = LeerZuNull(_variante.GTIN);
+        _variante.Variantenname = LeerZuNull(_variante.Variantenname);
+        _variante.AmazonAsin = LeerZuNull(_variante.AmazonAsin)?.ToUpperInvariant();
+        _variante.Lieferant = LeerZuNull(_variante.Lieferant);
+        _variante.SkuLieferant = LeerZuNull(_variante.SkuLieferant);
+        _variante.HsCode = LeerZuNull(_variante.HsCode);
+        _variante.Ursprungsland = LeerZuNull(_variante.Ursprungsland)?.ToUpperInvariant();
+
+        var fehler = PruefeVariante(out var einkaufspreis, out var gewicht)
+            ?? UebernehmeMerkmale()
+            ?? await UebernehmeBundleElementeAsync(mandantNr);
+        if (fehler is not null)
+        {
+            _fehler = fehler;
+            return;
+        }
+
+        _variante.EinkaufspreisNetto = einkaufspreis;
+        // Das Gewicht wird in ganzen Gramm geführt.
+        _variante.GewichtGramm = gewicht is { } g ? Math.Round(g, 0, MidpointRounding.AwayFromZero) : null;
+        _variante.MandantNr = mandantNr;
+        _variante.ArtikelID = _artikel.ArtikelID;
+
+        await using var db = await DbFactory.CreateDbContextAsync();
+        if (_variante.ArtikelvarianteID == 0)
+        {
+            db.Artikelvarianten.Add(_variante);
+        }
+        else
+        {
+            db.Entry(_variante).State = EntityState.Modified;
+        }
+
+        try
+        {
+            await db.SaveChangesAsync();
+        }
+        catch (DbUpdateException ex) when (DbFehler.IstEindeutigkeitsverletzung(ex))
+        {
+            _fehler = "SKU, EAN oder Amazon ASIN gibt es bereits (jeweils eindeutig je Mandant).";
+            db.Entry(_variante).State = EntityState.Detached;
+            return;
+        }
+
+        _meldung = $"Variante {_variante.SKU} gespeichert.";
+        _variante = null;
+        await LadeAsync();
+    }
+
+    private string? PruefeVariante(out decimal? einkaufspreis, out decimal? gewicht)
+    {
+        einkaufspreis = null;
+        gewicht = null;
+        if (_variante is null) return null;
+
+        if (_variante.SKU.Length == 0) return "Bitte eine SKU eingeben.";
+        if (_variante.GTIN is { } gtin && !gtin.All(char.IsAsciiDigit)) return "Die EAN darf nur Ziffern enthalten.";
+        if (_variante.VerkaufspreisBrutto < 0) return "Der Verkaufspreis darf nicht negativ sein.";
+        if (_variante.AmazonAsin is { } asin && !(asin.Length == 10 && asin.All(c => char.IsAsciiLetterUpper(c) || char.IsAsciiDigit(c))))
+            return "Die Amazon ASIN besteht aus genau 10 Zeichen (Buchstaben und Ziffern), z. B. B08N5WRWNW.";
+        if (_variante.HsCode is { } hsCode && !hsCode.All(char.IsAsciiDigit)) return "Der HS Code darf nur Ziffern enthalten.";
+        if (_variante.Ursprungsland is { } land && !(land.Length == 2 && land.All(char.IsAsciiLetterUpper)))
+            return "Das Ursprungsland muss ein ISO-Code mit zwei Buchstaben sein, z. B. CN.";
+        if (_variante.ProduktHoehe < 0 || _variante.ProduktLaenge < 0)
+            return "Produkthöhe und Produktlänge dürfen nicht negativ sein.";
+
+        if (!TryParseOptional(_einkaufspreisText, out einkaufspreis) || einkaufspreis < 0)
+            return "Der Einkaufspreis ist keine gültige, nicht negative Zahl.";
+        if (!TryParseOptional(_gewichtText, out gewicht) || gewicht < 0)
+            return "Das Gewicht ist keine gültige, nicht negative Zahl.";
+
+        return null;
+    }
+
+    // Bundle-Elemente: aus der Tabelle wird das JSON-Array [{"SKU": "...", "Menge": n}] erzeugt. Leere Zeilen
+    // entfallen, doppelte SKUs werden zusammengezählt; jede SKU muss es im Mandanten geben (gespeichert wird die
+    // Schreibweise aus der Datenbank), und eine Variante kann nicht Bestandteil ihrer selbst sein.
+    private async Task<string?> UebernehmeBundleElementeAsync(int mandantNr)
+    {
+        if (_variante is null) return null;
+
+        var zeilen = _bundleZeilen.Where(z => !string.IsNullOrWhiteSpace(z.SKU) || z.Menge != 1).ToList();
+        if (zeilen.Any(z => string.IsNullOrWhiteSpace(z.SKU)))
+            return "Bitte bei jedem Bundle-Element eine SKU angeben oder das Element entfernen.";
+        if (zeilen.Any(z => z.Menge < 1))
+            return "Die Menge eines Bundle-Elements muss mindestens 1 sein.";
+
+        if (zeilen.Count == 0)
+        {
+            _variante.BundleElemente = null;
+            return null;
+        }
+
+        var gewuenscht = zeilen.Select(z => z.SKU.Trim()).Distinct(StringComparer.OrdinalIgnoreCase).ToList();
+        await using var db = await DbFactory.CreateDbContextAsync();
+        var vorhanden = await db.Artikelvarianten.AsNoTracking()
+            .Where(v => v.MandantNr == mandantNr && gewuenscht.Contains(v.SKU))
+            .Select(v => v.SKU)
+            .ToListAsync();
+
+        var unbekannt = gewuenscht.Where(s => !vorhanden.Contains(s, StringComparer.OrdinalIgnoreCase)).ToList();
+        if (unbekannt.Count > 0)
+            return $"Unbekannte SKU in den Bundle-Elementen: {string.Join(", ", unbekannt)}.";
+        if (gewuenscht.Any(s => s.Equals(_variante.SKU, StringComparison.OrdinalIgnoreCase)))
+            return "Eine Variante kann nicht Bestandteil ihrer selbst sein.";
+
+        var elemente = zeilen
+            .GroupBy(z => vorhanden.First(v => v.Equals(z.SKU.Trim(), StringComparison.OrdinalIgnoreCase)), StringComparer.OrdinalIgnoreCase)
+            .Select(g => new { SKU = g.Key, Menge = g.Sum(z => z.Menge) });
+        _variante.BundleElemente = JsonSerializer.Serialize(elemente,
+            new JsonSerializerOptions { Encoder = System.Text.Encodings.Web.JavaScriptEncoder.UnsafeRelaxedJsonEscaping });
+        return null;
+    }
+
+    private async Task VarianteLoeschen(Artikelvariante v)
+    {
+        _meldung = _fehler = null;
+        if (MandantNr is not { } mandantNr) return;
+        if (v.ArtikelvarianteID == _ersteVarianteId)
+        {
+            _fehler = "Die erste Variante kann nicht gelöscht werden.";
+            return;
+        }
+
+        if (!await JS.InvokeAsync<bool>("confirm", $"Variante \"{v.SKU}\" wirklich löschen?")) return;
+
+        await using var db = await DbFactory.CreateDbContextAsync();
+        var variante = await db.Artikelvarianten.FirstOrDefaultAsync(x => x.ArtikelvarianteID == v.ArtikelvarianteID && x.MandantNr == mandantNr);
+        if (variante is null) return;
+
+        // Auch gegen den Stand der Datenbank prüfen, falls die Seite veraltet ist.
+        var ersteInDb = await db.Artikelvarianten.Where(x => x.ArtikelID == variante.ArtikelID && x.MandantNr == mandantNr).MinAsync(x => x.ArtikelvarianteID);
+        if (variante.ArtikelvarianteID == ersteInDb)
+        {
+            _fehler = "Die erste Variante kann nicht gelöscht werden.";
+            return;
+        }
+
+        db.Artikelvarianten.Remove(variante);
+        try
+        {
+            await db.SaveChangesAsync();
+        }
+        catch (DbUpdateException ex) when (DbFehler.IstFremdschluesselverletzung(ex))
+        {
+            _fehler = $"Die Variante \"{v.SKU}\" hat Bestände und kann nicht gelöscht werden. Setze sie stattdessen auf inaktiv.";
+            return;
+        }
+
+        _meldung = $"Variante {v.SKU} gelöscht.";
+        if (_variante?.ArtikelvarianteID == v.ArtikelvarianteID) _variante = null;
+        await LadeAsync();
+    }
+
+    private static string? LeerZuNull(string? text) => string.IsNullOrWhiteSpace(text) ? null : text.Trim();
+
+    // Leeres Feld = "kein Wert" (NULL); sonst deutsches Zahlenformat.
+    private static bool TryParseOptional(string text, out decimal? wert)
+    {
+        wert = null;
+        if (string.IsNullOrWhiteSpace(text)) return true;
+        if (!decimal.TryParse(text, NumberStyles.Number, German, out var parsed)) return false;
+        wert = parsed;
+        return true;
+    }
+}

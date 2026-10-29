@@ -1,0 +1,143 @@
+@page "/passwort-aendern"
+@using System.ComponentModel.DataAnnotations
+@using Microsoft.AspNetCore.Authorization
+@using Microsoft.AspNetCore.Identity
+@using ShopifySQL.Web.Models
+@using ShopifySQL.Web.Services
+@attribute [Authorize(Policy = "AngemeldeterBenutzer")]
+@inject UserManager<ApplicationUser> UserManager
+@inject SignInManager<ApplicationUser> SignInManager
+@inject NavigationManager Navigation
+
+@* Statische Server-Seite (kein InteractiveServer): nach dem Ändern wird das Anmelde-Cookie neu geschrieben,
+   das geht nur in einer echten HTTP-Antwort, nicht aus einem SignalR-Circuit. *@
+
+<PageTitle>Passwort ändern</PageTitle>
+
+<h1>Passwort ändern</h1>
+
+@if (_mussAendern)
+{
+    <div class="alert alert-warning" style="max-width: 460px;">
+        Bitte lege jetzt ein eigenes Passwort fest. Erst danach kannst du die App nutzen.
+    </div>
+}
+
+<EditForm Model="Input" method="post" OnValidSubmit="Aendern" FormName="passwort-aendern" class="mt-3" style="max-width: 460px;">
+    <DataAnnotationsValidator />
+    <ValidationSummary class="text-danger" role="alert" />
+
+    @if (_fehler is not null)
+    {
+        <div class="alert alert-danger" style="white-space: pre-wrap;">@_fehler</div>
+    }
+
+    <div class="border rounded p-3 mb-3">
+        <table class="table table-sm calc-table mb-0" style="width: auto;">
+            <tbody>
+                @if (!_mussAendern)
+                {
+                    <tr>
+                        <td class="calc-label">Aktuelles Passwort</td>
+                        <td><InputText type="password" class="form-control form-control-sm" style="width: 260px;" @bind-Value="Input.AktuellesPasswort" autocomplete="current-password" autofocus /></td>
+                    </tr>
+                }
+                <tr>
+                    <td class="calc-label">Neues Passwort</td>
+                    <td><InputText type="password" class="form-control form-control-sm" style="width: 260px;" @bind-Value="Input.NeuesPasswort" autocomplete="new-password" autofocus="@_mussAendern" /></td>
+                </tr>
+                <tr>
+                    <td class="calc-label">Neues Passwort wiederholen</td>
+                    <td><InputText type="password" class="form-control form-control-sm" style="width: 260px;" @bind-Value="Input.Wiederholung" autocomplete="new-password" /></td>
+                </tr>
+            </tbody>
+        </table>
+        <button type="submit" class="btn btn-primary mt-3">Passwort ändern</button>
+    </div>
+</EditForm>
+
+@code {
+    [CascadingParameter] private HttpContext HttpContext { get; set; } = default!;
+
+    [SupplyParameterFromForm]
+    private InputModel Input { get; set; } = new();
+
+    [SupplyParameterFromQuery]
+    private string? ReturnUrl { get; set; }
+
+    private string? _fehler;
+    private bool _mussAendern;
+
+    protected override void OnInitialized() =>
+        _mussAendern = HttpContext.User.HasClaim(ApplicationUserClaimsPrincipalFactory.MussPasswortAendernClaimType, "true");
+
+    private async Task Aendern()
+    {
+        _fehler = null;
+        var user = await UserManager.GetUserAsync(HttpContext.User);
+        if (user is null)
+        {
+            Navigation.NavigateTo("/login", forceLoad: true);
+            return;
+        }
+
+        IdentityResult ergebnis;
+        if (_mussAendern)
+        {
+            // Das Konto hat sich gerade mit dem vom Admin vergebenen Passwort angemeldet - das aktuelle Passwort
+            // wird nicht noch einmal abgefragt. Das neue muss sich aber vom vergebenen unterscheiden.
+            if (await UserManager.CheckPasswordAsync(user, Input.NeuesPasswort))
+            {
+                _fehler = "Das neue Passwort muss sich vom bisherigen unterscheiden.";
+                return;
+            }
+
+            var token = await UserManager.GeneratePasswordResetTokenAsync(user);
+            ergebnis = await UserManager.ResetPasswordAsync(user, token, Input.NeuesPasswort);
+        }
+        else
+        {
+            if (string.IsNullOrEmpty(Input.AktuellesPasswort))
+            {
+                _fehler = "Bitte das aktuelle Passwort eingeben.";
+                return;
+            }
+
+            if (Input.NeuesPasswort == Input.AktuellesPasswort)
+            {
+                _fehler = "Das neue Passwort muss sich vom aktuellen unterscheiden.";
+                return;
+            }
+
+            ergebnis = await UserManager.ChangePasswordAsync(user, Input.AktuellesPasswort, Input.NeuesPasswort);
+        }
+
+        if (!ergebnis.Succeeded)
+        {
+            _fehler = string.Join("\n", ergebnis.Errors.Select(e => e.Code == "PasswordMismatch"
+                ? "Das aktuelle Passwort ist falsch."
+                : e.Description));
+            return;
+        }
+
+        user.MussPasswortAendern = false;
+        await UserManager.UpdateAsync(user);
+
+        // Cookie neu ausstellen, damit der Claim "MussPasswortAendern" sofort verschwindet.
+        await SignInManager.RefreshSignInAsync(user);
+        Navigation.NavigateTo(Navigation.IstLokal(ReturnUrl) ? ReturnUrl! : "/", forceLoad: true);
+    }
+
+    private sealed class InputModel
+    {
+        // Beim erzwungenen Wechsel nicht abgefragt; sonst prüft die Seite selbst, dass es angegeben ist.
+        public string AktuellesPasswort { get; set; } = "";
+
+        [Required(ErrorMessage = "Bitte ein neues Passwort eingeben.")]
+        public string NeuesPasswort { get; set; } = "";
+
+        [Required(ErrorMessage = "Bitte das neue Passwort wiederholen.")]
+        [Compare(nameof(NeuesPasswort), ErrorMessage = "Die beiden neuen Passwörter stimmen nicht überein.")]
+        public string Wiederholung { get; set; } = "";
+    }
+}

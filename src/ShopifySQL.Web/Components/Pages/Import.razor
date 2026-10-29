@@ -1,0 +1,171 @@
+@page "/import"
+@using ShopifySQL.Web.Services
+@inherits MandantSeite
+@rendermode InteractiveServer
+@inject BestandImportService ImportService
+
+<PageTitle>Import</PageTitle>
+
+<h1>Import</h1>
+
+@if (MandantNr is null)
+{
+    <div class="alert alert-warning">Dem Konto ist kein Mandant zugeordnet.</div>
+    return;
+}
+
+@if (!string.IsNullOrEmpty(_meldung))
+{
+    <div class="alert alert-success">@_meldung</div>
+}
+@if (!string.IsNullOrEmpty(_fehler))
+{
+    <div class="alert alert-danger" style="white-space: pre-wrap;">@_fehler</div>
+}
+
+<div class="border rounded p-3 mb-3">
+    <h5>Artikelbestände</h5>
+    <p class="mb-2">
+        Excel-Datei (.xlsx) mit den Spalten <strong>Artikelnummer</strong>, <strong>Lagerplatz</strong>
+        (Bezeichnung des Lagerplatzes) und <strong>Menge</strong> in der ersten Zeile. Der Bestand der Variante
+        am Lagerplatz wird auf die Menge <strong>gesetzt</strong>, ein bisheriger Wert wird überschrieben.
+        Es wird entweder die ganze Datei importiert oder gar nichts. Eine Vorlage liefert der
+        <a href="/export">Export</a>.
+    </p>
+    <table class="table table-sm calc-table mb-0" style="width: auto;">
+        <tbody>
+            <tr>
+                <td class="calc-label">Datei</td>
+                <td><InputFile class="form-control form-control-sm" style="width: 420px;" accept=".xlsx" OnChange="DateiGewaehlt" /></td>
+            </tr>
+        </tbody>
+    </table>
+</div>
+
+@if (_zeilen is { Count: > 0 })
+{
+    var fehlerAnzahl = _zeilen.Count(z => z.Fehler is not null);
+    var geaendert = _zeilen.Count(z => z.Fehler is null && z.AlterBestand != z.Menge);
+
+    <div class="border rounded p-3 mb-3">
+        <h5>Prüfung: @_dateiname</h5>
+        <p class="mb-2">
+            @_zeilen.Count.ToString("N0", German) Zeilen,
+            <span class="@(fehlerAnzahl > 0 ? "text-danger" : "")">@fehlerAnzahl.ToString("N0", German) mit Fehlern</span>,
+            @geaendert.ToString("N0", German) würden einen Bestand neu anlegen oder ändern.
+        </p>
+
+        <table class="table table-sm calc-table mb-0" style="width: auto;">
+            <thead>
+                <tr>
+                    <th class="text-end">Zeile</th>
+                    <th>Artikelnummer</th>
+                    <th>Lagerplatz</th>
+                    <th class="text-end">Bisher</th>
+                    <th class="text-end">Neu</th>
+                    <th>Status</th>
+                </tr>
+            </thead>
+            <tbody>
+                @foreach (var z in _zeilen.OrderBy(z => z.Fehler is null).ThenBy(z => z.ExcelZeile).Take(MaxAnzeige))
+                {
+                    <tr>
+                        <td class="text-end">@z.ExcelZeile</td>
+                        <td style="text-align: left;">@z.Artikelnummer</td>
+                        <td style="text-align: left;">@z.Lagerplatz</td>
+                        <td class="text-end">@(z.AlterBestand?.ToString("N0", German) ?? "–")</td>
+                        <td class="text-end">@(z.Menge?.ToString("N0", German))</td>
+                        <td style="text-align: left;">
+                            @if (z.Fehler is not null)
+                            {
+                                <span class="text-danger">@z.Fehler</span>
+                            }
+                            else if (z.AlterBestand == z.Menge)
+                            {
+                                <span class="text-muted">unverändert</span>
+                            }
+                            else
+                            {
+                                <span>@(z.AlterBestand is null ? "neu" : "ändert sich")</span>
+                            }
+                        </td>
+                    </tr>
+                }
+            </tbody>
+        </table>
+        @if (_zeilen.Count > MaxAnzeige)
+        {
+            <div class="text-muted mt-2">Angezeigt werden die ersten @MaxAnzeige Zeilen (Fehler zuerst).</div>
+        }
+
+        <button type="button" class="btn btn-primary mt-3" disabled="@(fehlerAnzahl > 0 || _laeuft)" @onclick="Importieren">Importieren</button>
+        @if (fehlerAnzahl > 0)
+        {
+            <span class="text-danger ms-2">Bitte die Fehler in der Datei beheben und sie neu auswählen.</span>
+        }
+    </div>
+}
+
+@code {
+    private const int MaxDateiBytes = 5 * 1024 * 1024;
+    private const int MaxAnzeige = 200;
+
+    private static readonly System.Globalization.CultureInfo German = System.Globalization.CultureInfo.GetCultureInfo("de-DE");
+
+    private List<BestandImportZeile>? _zeilen;
+    private string _dateiname = "";
+    private bool _laeuft;
+    private string? _meldung;
+    private string? _fehler;
+
+    // Die Seite zeigt nur Daten der Datei und des Mandanten; nach einem Mandantenwechsel gilt die Prüfung nicht mehr.
+    protected override Task LadeAsync()
+    {
+        _zeilen = null;
+        return Task.CompletedTask;
+    }
+
+    private async Task DateiGewaehlt(InputFileChangeEventArgs e)
+    {
+        _meldung = _fehler = null;
+        _zeilen = null;
+        if (MandantNr is not { } mandantNr) return;
+
+        try
+        {
+            await using var stream = e.File.OpenReadStream(MaxDateiBytes);
+            using var puffer = new MemoryStream();
+            await stream.CopyToAsync(puffer);
+            puffer.Position = 0;
+
+            _dateiname = e.File.Name;
+            _zeilen = await ImportService.PruefenAsync(puffer, mandantNr);
+        }
+        catch (ImportFormatException ex)
+        {
+            _fehler = ex.Message;
+        }
+        catch (IOException)
+        {
+            _fehler = $"Die Datei ist zu groß (maximal {MaxDateiBytes / 1024 / 1024} MB).";
+        }
+    }
+
+    private async Task Importieren()
+    {
+        _meldung = _fehler = null;
+        if (MandantNr is not { } mandantNr || _zeilen is null) return;
+
+        _laeuft = true;
+        try
+        {
+            var geaendert = await ImportService.ImportierenAsync(_zeilen, mandantNr);
+            _meldung = $"{geaendert.ToString("N0", German)} von {_zeilen.Count.ToString("N0", German)} Beständen angelegt oder geändert.";
+            _zeilen = null;
+        }
+        finally
+        {
+            _laeuft = false;
+        }
+    }
+}

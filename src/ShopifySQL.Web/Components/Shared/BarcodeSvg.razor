@@ -1,0 +1,45 @@
+@using System.Globalization
+@using ShopifySQL.Web.Services
+
+@* Zeichnet ein Strichmuster als SVG in echter Größe: jedes Modul (schmalster Strich bzw. Lücke) ist genau
+   ModulbreiteMm breit, damit Striche und Lücken der Norm entsprechen. Die Höhe bestimmt der Container. *@
+<svg viewBox="0 0 @GtinBarcode.GesamtModule(Module.Length) 10" preserveAspectRatio="none" shape-rendering="crispEdges"
+     style="width: @BreiteMm; height: 100%; display: block;" aria-hidden="true">
+    @foreach (var (start, laenge) in Striche())
+    {
+        <rect x="@(start + GtinBarcode.Ruhezonen(Module.Length).Links)" y="0" width="@laenge" height="10" fill="#000" />
+    }
+</svg>
+
+@code {
+    [Parameter, EditorRequired] public bool[] Module { get; set; } = [];
+
+    /// <summary>Breite eines Moduls in mm (Norm: 0,264 bis 0,66, nominal 0,33).</summary>
+    [Parameter] public decimal ModulbreiteMm { get; set; } = GtinBarcode.NominaleModulbreiteMm;
+
+    private string BreiteMm =>
+        (GtinBarcode.GesamtModule(Module.Length) * Math.Clamp(ModulbreiteMm, GtinBarcode.MinModulbreiteMm, GtinBarcode.MaxModulbreiteMm))
+            .ToString("0.###", CultureInfo.InvariantCulture) + "mm";
+
+    // Zusammenhängende Strichmodule zu einem Rechteck zusammenfassen.
+    private IEnumerable<(int Start, int Laenge)> Striche()
+    {
+        var i = 0;
+        while (i < Module.Length)
+        {
+            if (!Module[i])
+            {
+                i++;
+                continue;
+            }
+
+            var start = i;
+            while (i < Module.Length && Module[i])
+            {
+                i++;
+            }
+
+            yield return (start, i - start);
+        }
+    }
+}

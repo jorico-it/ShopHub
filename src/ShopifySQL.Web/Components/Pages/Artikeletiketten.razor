@@ -1,0 +1,313 @@
+@page "/artikeletiketten"
+@using System.Globalization
+@using Microsoft.EntityFrameworkCore
+@using ShopifySQL.Web.Data
+@using ShopifySQL.Web.Services
+@inherits MandantSeite
+@rendermode InteractiveServer
+@inject IDbContextFactory<AppDbContext> DbFactory
+@inject IJSRuntime JS
+
+<PageTitle>Artikeletiketten</PageTitle>
+
+@* Seitengröße und Druckregeln: beim Drucken bleiben nur die Etiketten übrig, eine Etikette je Seite. *@
+<style>@((MarkupString)Css)</style>
+
+<div class="no-print">
+    <h1>Artikeletiketten</h1>
+
+    @if (MandantNr is null)
+    {
+        <div class="alert alert-warning">Dem Konto ist kein Mandant zugeordnet.</div>
+        return;
+    }
+
+    <div class="border rounded p-3 mb-3">
+        <h5>Etikettengröße</h5>
+        <table class="table table-sm calc-table mb-0" style="width: auto;">
+            <tbody>
+                <tr>
+                    <td class="calc-label">Breite (mm)</td>
+                    <td><input type="number" class="form-control form-control-sm" style="width: 110px; text-align: right;" min="@MinMm" max="@MaxMm" @bind="_breiteMm" /></td>
+                </tr>
+                <tr>
+                    <td class="calc-label">Höhe (mm)</td>
+                    <td><input type="number" class="form-control form-control-sm" style="width: 110px; text-align: right;" min="@MinMm" max="@MaxMm" @bind="_hoeheMm" /></td>
+                </tr>
+                <tr>
+                    <td class="calc-label">Strichbreite des Barcodes (mm)</td>
+                    <td>
+                        <input type="number" class="form-control form-control-sm" style="width: 110px; text-align: right;"
+                               min="@GtinBarcode.MinModulbreiteMm.ToString(Invariant)" max="@GtinBarcode.MaxModulbreiteMm.ToString(Invariant)" step="0.001" @bind="_modulbreiteMm" />
+                    </td>
+                </tr>
+            </tbody>
+        </table>
+        <div class="text-muted mt-2">
+            Strichbreite = Breite des schmalsten Strichs und der schmalsten Lücke. Norm (GS1): 0,264 bis 0,66 mm, normal 0,33 mm.
+            Für scharfe Striche ein ganzes Vielfaches eines Druckerpunkts wählen, z. B. 0,375 mm (3 Punkte bei 203 dpi) oder 0,339 mm (4 Punkte bei 300 dpi).
+        </div>
+        @if (BarcodeZuBreit)
+        {
+            <div class="text-danger mt-2">Der Barcode ist mit dieser Strichbreite breiter als das Etikett - bitte Strichbreite oder Etikettenbreite anpassen.</div>
+        }
+    </div>
+
+    <div class="border rounded p-3 mb-3">
+        <h5>Varianten auswählen</h5>
+        <div class="d-flex align-items-center gap-3 mb-2">
+            <input class="form-control form-control-sm" style="width: 320px;" placeholder="Suche: Artikelnr., SKU, EAN, Bezeichnung, Marke"
+                   @bind="_suche" @bind:event="oninput" @bind:after="LadeAsync" />
+            <label class="mb-0">
+                <input type="checkbox" class="form-check-input" @bind="_nurAktive" @bind:after="LadeAsync" /> nur aktive
+            </label>
+        </div>
+        <div class="text-muted mb-2">Es werden nur Varianten mit EAN angeboten. Anzahl 0 = nicht drucken.</div>
+
+        @if (_zeilen.Count == 0)
+        {
+            <p class="text-muted mb-0">Keine passenden Varianten gefunden.</p>
+        }
+        else
+        {
+            <table class="table table-sm calc-table mb-0" style="width: auto;">
+                <thead>
+                    <tr>
+                        <th>Artikelnummer</th>
+                        <th>SKU</th>
+                        <th>Bezeichnung</th>
+                        <th>Marke</th>
+                        <th>EAN</th>
+                        <th class="text-end">Anzahl</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    @foreach (var z in _zeilen)
+                    {
+                        <tr>
+                            <td style="text-align: left;">@z.Artikelnummer</td>
+                            <td style="text-align: left;">@z.SKU</td>
+                            <td style="text-align: left;">@z.Anzeigename</td>
+                            <td style="text-align: left;">
+                                @(z.Markenname ?? "keine Marke")
+                                @if (!z.HatMarkenlogo)
+                                {
+                                    <span class="text-muted">(kein Logo)</span>
+                                }
+                            </td>
+                            <td style="text-align: left;">@z.GTIN</td>
+                            <td class="text-end">
+                                @if (z.Fehler is null)
+                                {
+                                    <input type="number" class="form-control form-control-sm anzahl-eingabe" style="width: 4rem; text-align: right;"
+                                           min="0" max="@MaxAnzahl" value="@z.Anzahl" data-german-number-input
+                                           @onchange="e => SetzeAnzahl(z, e.Value?.ToString())" />
+                                }
+                                else
+                                {
+                                    <span class="text-danger">@z.Fehler</span>
+                                }
+                            </td>
+                        </tr>
+                    }
+                </tbody>
+            </table>
+            @if (_abgeschnitten)
+            {
+                <div class="text-muted mt-2">Nur die ersten @MaxZeilen Treffer werden angezeigt - bitte die Suche eingrenzen.</div>
+            }
+        }
+    </div>
+
+    <div class="border rounded p-3 mb-3">
+        <h5>Drucken</h5>
+        <p class="mb-2">Zu druckende Etiketten: <strong>@GesamtAnzahl.ToString("N0", German)</strong></p>
+        @if (_auswahl.Values.Any(z => !z.HatMarkenlogo))
+        {
+            <p class="text-warning-emphasis mb-2">
+                Hinweis: Bei @_auswahl.Values.Count(z => !z.HatMarkenlogo) gewählten Varianten hat die Marke kein Logo - diese Etiketten werden ohne Logo gedruckt (Pflege unter Marken).
+            </p>
+        }
+        <button type="button" class="btn btn-primary" disabled="@(GesamtAnzahl == 0)" @onclick="Drucken">Drucken</button>
+        <button type="button" class="btn btn-outline-secondary" disabled="@(GesamtAnzahl == 0)" @onclick="AuswahlLeeren">Auswahl leeren</button>
+        <div class="text-muted mt-2">Im Druckdialog den Etikettendrucker wählen, Ränder auf „Keine“ und Skalierung auf 100 % stellen.</div>
+    </div>
+
+    @if (GesamtAnzahl > 0)
+    {
+        <h5>Vorschau</h5>
+        @if (GesamtAnzahl > VorschauAnzahl)
+        {
+            <div class="text-muted mb-2">Gezeigt werden die ersten @VorschauAnzahl Etiketten, gedruckt werden alle @GesamtAnzahl.ToString("N0", German).</div>
+        }
+    }
+</div>
+
+<div class="etiketten-druck">
+    @foreach (var z in _auswahl.Values.OrderBy(z => z.Artikelnummer).ThenBy(z => z.SKU))
+    {
+        @for (var i = 0; i < z.Anzahl; i++)
+        {
+            <div class="etikett">
+                <div class="etikett-kopf">
+                    @if (z.HatMarkenlogo)
+                    {
+                        <img class="etikett-logo" src="/marke-logo/@z.MarkeID?v=@z.LogoVersion" alt="" />
+                    }
+                </div>
+                <div class="etikett-unten">
+                    <div class="etikett-text">
+                        <div class="etikett-artnr">@z.Artikelnummer</div>
+                        <div class="etikett-name">@z.Anzeigename</div>
+                    </div>
+                    <div class="etikett-code">
+                        <div class="etikett-barcode"><BarcodeSvg Module="z.Module" ModulbreiteMm="_modulbreiteMm" /></div>
+                        <div class="etikett-gtin" style="@GtinStil(z.Module.Length)">
+                            @foreach (var ziffer in z.GTIN)
+                            {
+                                <span>@ziffer</span>
+                            }
+                        </div>
+                    </div>
+                </div>
+            </div>
+        }
+    }
+</div>
+
+@code {
+    private const int MinMm = 20;
+    private const int MaxMm = 200;
+    private const int MaxZeilen = 100;
+    private const int MaxAnzahl = 500;
+
+    // Auf dem Bildschirm zeigt die Vorschau nur die ersten Etiketten; gedruckt werden alle (siehe Css).
+    private const int VorschauAnzahl = 3;
+
+    private static readonly CultureInfo German = CultureInfo.GetCultureInfo("de-DE");
+    private static readonly CultureInfo Invariant = CultureInfo.InvariantCulture;
+
+    private sealed class Zeile
+    {
+        public int ArtikelvarianteID { get; init; }
+        public string Artikelnummer { get; init; } = "";
+        public string SKU { get; init; } = "";
+        public string Anzeigename { get; init; } = "";
+        public string GTIN { get; init; } = "";
+        public int? MarkeID { get; init; }
+        public string? Markenname { get; init; }
+        public bool HatMarkenlogo { get; init; }
+        public long LogoVersion { get; init; }
+        public bool[] Module { get; init; } = [];
+        public string? Fehler { get; init; }
+        public int Anzahl { get; set; }
+    }
+
+    private List<Zeile> _zeilen = [];
+    // Gewählte Varianten bleiben erhalten, auch wenn die Suche sie gerade nicht anzeigt.
+    private readonly Dictionary<int, Zeile> _auswahl = [];
+    private string _suche = "";
+    private bool _nurAktive = true;
+    private bool _abgeschnitten;
+    private decimal _modulbreiteMm = GtinBarcode.NominaleModulbreiteMm;
+    private int _breiteMm = 152;
+    private int _hoeheMm = 103;
+
+    private int GesamtAnzahl => _auswahl.Values.Sum(z => z.Anzahl);
+
+    protected override async Task OnAfterRenderAsync(bool firstRender)
+    {
+        if (firstRender)
+        {
+            // Pfeil hoch/runter springt zwischen den Mengenfeldern (wie in der Marktanalyse-App).
+            var module = await JS.InvokeAsync<IJSObjectReference>("import", "/js/germanNumberInputNav.js");
+            await module.InvokeVoidAsync("init");
+        }
+    }
+
+
+    protected override async Task LadeAsync()
+    {
+        _zeilen = [];
+        if (MandantNr is not { } mandantNr) return;
+
+        await using var db = await DbFactory.CreateDbContextAsync();
+
+        var abfrage = db.Artikelvarianten.AsNoTracking().Where(v => v.MandantNr == mandantNr && v.GTIN != null);
+        if (_nurAktive)
+        {
+            abfrage = abfrage.Where(v => v.Aktiv && v.Artikel!.Aktiv);
+        }
+
+        var suche = _suche.Trim();
+        if (suche.Length > 0)
+        {
+            abfrage = abfrage.Where(v => v.SKU.Contains(suche) || v.GTIN!.Contains(suche)
+                || (v.Variantenname != null && v.Variantenname.Contains(suche))
+                || v.Artikel!.Artikelnummer.Contains(suche) || v.Artikel.Bezeichnung.Contains(suche)
+                || (v.Artikel.Marke != null && v.Artikel.Marke.Markenname.Contains(suche)));
+        }
+
+        var treffer = await abfrage
+            .OrderBy(v => v.Artikel!.Artikelnummer).ThenBy(v => v.SKU)
+            .Take(MaxZeilen + 1)
+            .Select(v => new
+            {
+                v.ArtikelvarianteID, v.Artikel!.Artikelnummer, v.SKU, v.Artikel.Bezeichnung, v.Variantenname, v.GTIN,
+                v.Artikel.MarkeID,
+                Markenname = v.Artikel.Marke != null ? v.Artikel.Marke.Markenname : null,
+                // Nur ob ein Markenlogo existiert, nicht die Bilddaten laden.
+                HatMarkenlogo = v.Artikel.Marke != null && v.Artikel.Marke.Logo != null,
+                MarkeGeaendertAm = v.Artikel.Marke != null ? (DateTime?)v.Artikel.Marke.GeaendertAm : null,
+            })
+            .ToListAsync();
+
+        _abgeschnitten = treffer.Count > MaxZeilen;
+        _zeilen = treffer.Take(MaxZeilen).Select(t =>
+        {
+            // Schon gewählte Zeilen weiterverwenden, damit ihre Anzahl sichtbar bleibt.
+            if (_auswahl.TryGetValue(t.ArtikelvarianteID, out var vorhanden)) return vorhanden;
+
+            var geeignet = GtinBarcode.TryErzeugen(t.GTIN, out var module, out var fehler);
+            return new Zeile
+            {
+                ArtikelvarianteID = t.ArtikelvarianteID,
+                Artikelnummer = t.Artikelnummer,
+                SKU = t.SKU,
+                Anzeigename = string.IsNullOrWhiteSpace(t.Variantenname) ? t.Bezeichnung : $"{t.Bezeichnung} – {t.Variantenname}",
+                GTIN = t.GTIN!.Trim(),
+                MarkeID = t.MarkeID,
+                Markenname = t.Markenname,
+                HatMarkenlogo = t.HatMarkenlogo,
+                LogoVersion = t.MarkeGeaendertAm?.Ticks ?? 0,
+                Module = geeignet ? module : [],
+                Fehler = fehler,
+            };
+        }).ToList();
+    }
+
+    private void SetzeAnzahl(Zeile zeile, string? wert)
+    {
+        zeile.Anzahl = int.TryParse(wert, out var anzahl) ? Math.Clamp(anzahl, 0, MaxAnzahl) : 0;
+        if (zeile.Anzahl > 0)
+        {
+            _auswahl[zeile.ArtikelvarianteID] = zeile;
+        }
+        else
+        {
+            _auswahl.Remove(zeile.ArtikelvarianteID);
+        }
+    }
+
+    private void AuswahlLeeren()
+    {
+        foreach (var z in _auswahl.Values)
+        {
+            z.Anzahl = 0;
+        }
+
+        _auswahl.Clear();
+    }
+
+    private async Task Drucken() => await JS.InvokeVoidAsync("print");
+}

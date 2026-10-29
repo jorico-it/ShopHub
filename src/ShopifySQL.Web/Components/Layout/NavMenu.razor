@@ -1,0 +1,198 @@
+@using Microsoft.EntityFrameworkCore
+@using ShopifySQL.Web.Data
+@using ShopifySQL.Web.Models
+@using ShopifySQL.Web.Services
+@implements IDisposable
+@inject IDbContextFactory<AppDbContext> DbFactory
+@inject MandantKontext Kontext
+
+<div class="top-row ps-3 navbar navbar-dark">
+    <div class="container-fluid">
+        <a class="navbar-brand" href="">JORICO ShopHub</a>
+    </div>
+</div>
+
+<input type="checkbox" title="Navigation menu" class="navbar-toggler" />
+
+<div class="nav-scrollable" onclick="document.querySelector('.navbar-toggler').click()">
+    <nav class="nav flex-column">
+        <AuthorizeView>
+            <Authorized>
+                <div class="nav-item px-3" onclick="event.stopPropagation()">
+                    @if (_istAdmin)
+                    {
+                        <select class="form-select form-select-sm mt-2" title="Mandant" aria-label="Mandant"
+                                value="@_mandantNr" @onchange="WaehleMandant">
+                            @if (_mandantNr is null)
+                            {
+                                <option value="">Mandant wählen</option>
+                            }
+                            @foreach (var m in _mandanten)
+                            {
+                                <option value="@m.MandantNr">@m.Bezeichnung</option>
+                            }
+                        </select>
+                    }
+                    else
+                    {
+                        <div class="nav-link text-truncate" style="cursor: default;" title="Mandant">
+                            @(_mandantAnzeige ?? "Kein Mandant zugeordnet")
+                        </div>
+                    }
+                </div>
+
+                <hr class="my-2 mx-3" />
+
+                <div class="nav-item px-3">
+                    <NavLink class="nav-link" href="" Match="NavLinkMatch.All">
+                        <span class="bi bi-house-door-nav-menu" aria-hidden="true"></span> Start
+                    </NavLink>
+                </div>
+                <div class="nav-item px-3">
+                    <NavLink class="nav-link" href="artikel">
+                        <span class="bi bi-search-nav-menu" aria-hidden="true"></span> Artikel
+                    </NavLink>
+                </div>
+                <div class="nav-item px-3">
+                    <NavLink class="nav-link" href="bestaende">
+                        <span class="bi bi-box-nav-menu" aria-hidden="true"></span> Bestände
+                    </NavLink>
+                </div>
+                <div class="nav-item px-3">
+                    <NavLink class="nav-link" href="lagerplaetze">
+                        <span class="bi bi-building-nav-menu" aria-hidden="true"></span> Lagerplätze
+                    </NavLink>
+                </div>
+                <div class="nav-item px-3">
+                    <NavLink class="nav-link" href="artikeletiketten">
+                        <span class="bi bi-printer-nav-menu" aria-hidden="true"></span> Artikeletiketten
+                    </NavLink>
+                </div>
+                <div class="nav-item px-3">
+                    <NavLink class="nav-link" href="marken">
+                        <span class="bi bi-cash-nav-menu" aria-hidden="true"></span> Marken
+                    </NavLink>
+                </div>
+                <div class="nav-item px-3">
+                    <NavLink class="nav-link" href="import">
+                        <span class="bi bi-upload-nav-menu" aria-hidden="true"></span> Import
+                    </NavLink>
+                </div>
+                <div class="nav-item px-3">
+                    <NavLink class="nav-link" href="export">
+                        <span class="bi bi-download-nav-menu" aria-hidden="true"></span> Export
+                    </NavLink>
+                </div>
+
+                <hr class="my-2 mx-3" />
+
+                @if (_istAdmin)
+                {
+                    <div class="nav-item px-3">
+                        <NavLink class="nav-link" href="mandanten">
+                            <span class="bi bi-gear-nav-menu" aria-hidden="true"></span> Mandanten
+                        </NavLink>
+                    </div>
+                    <div class="nav-item px-3">
+                        <NavLink class="nav-link" href="benutzerverwaltung">
+                            <span class="bi bi-people-nav-menu" aria-hidden="true"></span> Benutzerverwaltung
+                        </NavLink>
+                    </div>
+                    <div class="nav-item px-3">
+                        <NavLink class="nav-link" href="login-protokoll">
+                            <span class="bi bi-clock-history-nav-menu" aria-hidden="true"></span> Login-Protokoll
+                        </NavLink>
+                    </div>
+                }
+                <div class="nav-item px-3">
+                    <NavLink class="nav-link" href="passwort-aendern">
+                        <span class="bi bi-gear-nav-menu" aria-hidden="true"></span> Passwort ändern
+                    </NavLink>
+                </div>
+                <div class="nav-item px-3">
+                    <div class="nav-link text-truncate" style="cursor: default;" title="@context.User.Identity?.Name">
+                        @context.User.Identity?.Name
+                    </div>
+                </div>
+                <div class="nav-item px-3">
+                    <form action="Account/Logout" method="post">
+                        <AntiforgeryToken />
+                        <input type="hidden" name="ReturnUrl" value="/login" />
+                        <button type="submit" class="nav-link btn btn-link text-start p-0">Abmelden</button>
+                    </form>
+                </div>
+            </Authorized>
+            <NotAuthorized>
+                <div class="nav-item px-3">
+                    <NavLink class="nav-link" href="login">Anmelden</NavLink>
+                </div>
+            </NotAuthorized>
+        </AuthorizeView>
+
+        <hr class="my-2 mx-3" />
+
+        <div class="nav-item px-3">
+            <NavLink class="nav-link" href="impressum">
+                <span class="bi bi-info-circle-nav-menu" aria-hidden="true"></span> Impressum
+            </NavLink>
+        </div>
+    </nav>
+</div>
+
+@code {
+    private bool _istAdmin;
+    private int? _mandantNr;
+    private string? _mandantAnzeige;
+    private List<Mandant> _mandanten = [];
+
+    protected override async Task OnInitializedAsync()
+    {
+        Kontext.Geaendert += OnMandantGeaendert;
+        await LadeAsync();
+    }
+
+    private async Task LadeAsync()
+    {
+        _istAdmin = await Kontext.IstAdminAsync();
+        _mandantNr = await Kontext.GetMandantNrAsync();
+
+        // Nicht angemeldete Besucher (Login-Seite) brauchen keine Mandantendaten.
+        if (_mandantNr is null && !_istAdmin)
+        {
+            _mandantAnzeige = null;
+            return;
+        }
+
+        await using var db = await DbFactory.CreateDbContextAsync();
+        if (_istAdmin)
+        {
+            // Ohne Logo-Spalte laden: das Menü wird bei jedem Seitenaufbau gerendert.
+            _mandanten = await db.Mandanten.AsNoTracking().Where(m => m.Aktiv).OrderBy(m => m.MandantNr)
+                .Select(m => new Mandant { MandantNr = m.MandantNr, Bezeichnung = m.Bezeichnung })
+                .ToListAsync();
+        }
+        else
+        {
+            _mandantAnzeige = await db.Mandanten.AsNoTracking()
+                .Where(m => m.MandantNr == _mandantNr)
+                .Select(m => m.Bezeichnung)
+                .FirstOrDefaultAsync();
+        }
+    }
+
+    private async Task WaehleMandant(ChangeEventArgs e)
+    {
+        if (int.TryParse(e.Value?.ToString(), out var mandantNr))
+        {
+            await Kontext.WaehleAsync(mandantNr);
+        }
+    }
+
+    private void OnMandantGeaendert() => _ = InvokeAsync(async () =>
+    {
+        await LadeAsync();
+        StateHasChanged();
+    });
+
+    public void Dispose() => Kontext.Geaendert -= OnMandantGeaendert;
+}

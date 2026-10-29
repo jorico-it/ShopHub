@@ -1,0 +1,262 @@
+@page "/marken"
+@using Microsoft.EntityFrameworkCore
+@using ShopifySQL.Web.Data
+@using ShopifySQL.Web.Models
+@using ShopifySQL.Web.Services
+@inherits MandantSeite
+@rendermode InteractiveServer
+@inject IDbContextFactory<AppDbContext> DbFactory
+@inject IJSRuntime JS
+
+<PageTitle>Marken</PageTitle>
+
+<h1>Marken</h1>
+
+@if (MandantNr is null)
+{
+    <div class="alert alert-warning">Dem Konto ist kein Mandant zugeordnet.</div>
+    return;
+}
+
+@if (!string.IsNullOrEmpty(_meldung))
+{
+    <div class="alert alert-success">@_meldung</div>
+}
+@if (!string.IsNullOrEmpty(_fehler))
+{
+    <div class="alert alert-danger">@_fehler</div>
+}
+
+<div class="border rounded p-3 mb-3">
+    @if (_zeilen.Count == 0)
+    {
+        <p class="text-muted mb-0">Noch keine Marken angelegt.</p>
+    }
+    else
+    {
+        <table class="table table-sm calc-table mb-0" style="width: auto;">
+            <thead>
+                <tr>
+                    <th>Markenname</th>
+                    <th>Aktiv</th>
+                    <th>Logo (PNG/JPEG, max. 512 KB)</th>
+                    <th class="text-end">Artikel</th>
+                    <th></th>
+                </tr>
+            </thead>
+            <tbody>
+                @foreach (var z in _zeilen)
+                {
+                    <tr>
+                        <td style="text-align: left;">
+                            <input class="form-control form-control-sm" style="width: 280px;" maxlength="100" @bind="z.Markenname" />
+                        </td>
+                        <td style="text-align: left;">
+                            <input type="checkbox" class="form-check-input" @bind="z.Aktiv" />
+                        </td>
+                        <td style="text-align: left;">
+                            <div class="d-flex align-items-center gap-2">
+                                @if (z.HatLogo)
+                                {
+                                    <img src="/marke-logo/@z.MarkeID?v=@z.LogoVersion" alt="Logo" style="max-height: 32px; max-width: 80px;" />
+                                }
+                                <InputFile class="form-control form-control-sm" style="width: 220px;" accept=".png,.jpg,.jpeg"
+                                           OnChange="e => LogoHochladen(z, e)" />
+                                @if (z.HatLogo)
+                                {
+                                    <button type="button" class="btn btn-sm btn-outline-danger" @onclick="() => LogoEntfernen(z)">Entfernen</button>
+                                }
+                            </div>
+                        </td>
+                        <td class="text-end">@z.ArtikelAnzahl.ToString("N0", German)</td>
+                        <td>
+                            <button type="button" class="btn btn-sm btn-primary" @onclick="() => Speichern(z)">Speichern</button>
+                            <button type="button" class="btn btn-sm btn-outline-danger" @onclick="() => Loeschen(z)">Löschen</button>
+                        </td>
+                    </tr>
+                }
+            </tbody>
+        </table>
+    }
+</div>
+
+<div class="border rounded p-3 mb-3">
+    <h5>Neue Marke anlegen</h5>
+    <table class="table table-sm calc-table mb-0" style="width: auto;">
+        <tbody>
+            <tr>
+                <td class="calc-label">Markenname</td>
+                <td><input class="form-control form-control-sm" style="width: 280px;" maxlength="100" @bind="_neuerName" /></td>
+            </tr>
+        </tbody>
+    </table>
+    <button type="button" class="btn btn-primary mt-3" @onclick="Anlegen">Marke anlegen</button>
+</div>
+
+@code {
+    private static readonly System.Globalization.CultureInfo German = System.Globalization.CultureInfo.GetCultureInfo("de-DE");
+
+    private sealed class Zeile
+    {
+        public int MarkeID { get; init; }
+        public string Markenname { get; set; } = "";
+        public bool Aktiv { get; set; }
+        public int ArtikelAnzahl { get; init; }
+        public bool HatLogo { get; set; }
+        public long LogoVersion { get; set; }
+    }
+
+    private List<Zeile> _zeilen = [];
+    private string _neuerName = "";
+    private string? _meldung;
+    private string? _fehler;
+
+    protected override async Task LadeAsync()
+    {
+        _zeilen = [];
+        if (MandantNr is not { } mandantNr) return;
+
+        await using var db = await DbFactory.CreateDbContextAsync();
+        _zeilen = await db.Marken.AsNoTracking()
+            .Where(m => m.MandantNr == mandantNr)
+            .OrderBy(m => m.Markenname)
+            .Select(m => new Zeile
+            {
+                MarkeID = m.MarkeID,
+                Markenname = m.Markenname,
+                Aktiv = m.Aktiv,
+                // Nur ob ein Logo existiert, nicht die Bilddaten laden.
+                HatLogo = m.Logo != null,
+                LogoVersion = m.GeaendertAm.Ticks,
+                ArtikelAnzahl = db.Artikel.Count(a => a.MandantNr == mandantNr && a.MarkeID == m.MarkeID),
+            })
+            .ToListAsync();
+    }
+
+    private async Task Anlegen()
+    {
+        _meldung = _fehler = null;
+        var name = _neuerName.Trim();
+        if (MandantNr is not { } mandantNr) return;
+        if (name.Length == 0)
+        {
+            _fehler = "Bitte einen Markennamen eingeben.";
+            return;
+        }
+
+        await using var db = await DbFactory.CreateDbContextAsync();
+        db.Marken.Add(new Marke { MandantNr = mandantNr, Markenname = name });
+        try
+        {
+            await db.SaveChangesAsync();
+        }
+        catch (DbUpdateException ex) when (DbFehler.IstEindeutigkeitsverletzung(ex))
+        {
+            _fehler = $"Die Marke \"{name}\" gibt es bereits.";
+            return;
+        }
+
+        _meldung = $"Marke \"{name}\" angelegt.";
+        _neuerName = "";
+        await LadeAsync();
+    }
+
+    private async Task Speichern(Zeile zeile)
+    {
+        _meldung = _fehler = null;
+        var name = zeile.Markenname.Trim();
+        if (MandantNr is not { } mandantNr) return;
+        if (name.Length == 0)
+        {
+            _fehler = "Der Markenname darf nicht leer sein.";
+            return;
+        }
+
+        await using var db = await DbFactory.CreateDbContextAsync();
+        var marke = await db.Marken.FirstOrDefaultAsync(m => m.MarkeID == zeile.MarkeID && m.MandantNr == mandantNr);
+        if (marke is null) return;
+
+        marke.Markenname = name;
+        marke.Aktiv = zeile.Aktiv;
+        try
+        {
+            await db.SaveChangesAsync();
+        }
+        catch (DbUpdateException ex) when (DbFehler.IstEindeutigkeitsverletzung(ex))
+        {
+            _fehler = $"Die Marke \"{name}\" gibt es bereits.";
+            return;
+        }
+
+        _meldung = $"Marke \"{name}\" gespeichert.";
+        await LadeAsync();
+    }
+
+    private async Task LogoHochladen(Zeile zeile, InputFileChangeEventArgs e)
+    {
+        _meldung = _fehler = null;
+        var (daten, contentType, fehler) = await LogoDatei.LesenAsync(e.File);
+        if (fehler is not null)
+        {
+            _fehler = fehler;
+            return;
+        }
+
+        if (await LogoSpeichern(zeile, daten, contentType))
+        {
+            _meldung = $"Logo für \"{zeile.Markenname}\" gespeichert.";
+        }
+    }
+
+    private async Task LogoEntfernen(Zeile zeile)
+    {
+        _meldung = _fehler = null;
+        if (await LogoSpeichern(zeile, null, null))
+        {
+            _meldung = $"Logo für \"{zeile.Markenname}\" entfernt.";
+        }
+    }
+
+    // Das Logo wird sofort gespeichert, unabhängig von noch nicht gespeicherten Änderungen am Namen.
+    private async Task<bool> LogoSpeichern(Zeile zeile, byte[]? daten, string? contentType)
+    {
+        if (MandantNr is not { } mandantNr) return false;
+
+        await using var db = await DbFactory.CreateDbContextAsync();
+        var marke = await db.Marken.FirstOrDefaultAsync(m => m.MarkeID == zeile.MarkeID && m.MandantNr == mandantNr);
+        if (marke is null) return false;
+
+        marke.Logo = daten;
+        marke.LogoContentType = contentType;
+        await db.SaveChangesAsync();
+
+        zeile.HatLogo = daten is not null;
+        zeile.LogoVersion = marke.GeaendertAm.Ticks;
+        return true;
+    }
+
+    private async Task Loeschen(Zeile zeile)
+    {
+        _meldung = _fehler = null;
+        if (MandantNr is not { } mandantNr) return;
+        if (!await JS.InvokeAsync<bool>("confirm", $"Marke \"{zeile.Markenname}\" wirklich löschen?")) return;
+
+        await using var db = await DbFactory.CreateDbContextAsync();
+        var marke = await db.Marken.FirstOrDefaultAsync(m => m.MarkeID == zeile.MarkeID && m.MandantNr == mandantNr);
+        if (marke is null) return;
+
+        db.Marken.Remove(marke);
+        try
+        {
+            await db.SaveChangesAsync();
+        }
+        catch (DbUpdateException ex) when (DbFehler.IstFremdschluesselverletzung(ex))
+        {
+            _fehler = $"Die Marke \"{marke.Markenname}\" wird von Artikeln verwendet. Setze sie stattdessen auf inaktiv.";
+            return;
+        }
+
+        _meldung = $"Marke \"{marke.Markenname}\" gelöscht.";
+        await LadeAsync();
+    }
+}

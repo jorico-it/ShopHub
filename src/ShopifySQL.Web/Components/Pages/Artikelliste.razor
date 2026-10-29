@@ -1,0 +1,168 @@
+@page "/artikel"
+@using Microsoft.EntityFrameworkCore
+@using ShopifySQL.Web.Data
+@using ShopifySQL.Web.Services
+@inherits MandantSeite
+@rendermode InteractiveServer
+@inject IDbContextFactory<AppDbContext> DbFactory
+
+<PageTitle>Artikel</PageTitle>
+
+<h1>Artikel</h1>
+
+@if (MandantNr is null)
+{
+    <div class="alert alert-warning">Dem Konto ist kein Mandant zugeordnet.</div>
+    return;
+}
+
+<div class="d-flex flex-wrap align-items-center gap-3 mb-3">
+    <a class="btn btn-primary" href="/artikel-bearbeiten">Neuen Artikel anlegen</a>
+    <input class="form-control form-control-sm" style="width: 260px;" placeholder="Artikelnummer, Bezeichnung oder SKU"
+           @bind="_suche" @bind:event="oninput" @onkeydown="SucheTaste" />
+    <button type="button" class="btn btn-sm btn-primary" @onclick="Suchen">Suchen</button>
+    <label class="form-check-label">
+        <input type="checkbox" class="form-check-input" checked="@_nurAktive" @onchange="NurAktiveGeaendert" /> nur aktive
+    </label>
+</div>
+
+@if (_zeilen.Count == 0)
+{
+    <p class="text-muted">Keine Artikel gefunden.</p>
+}
+else
+{
+    <PaginationControls Page="_seite" TotalPages="_seitenAnzahl" OnPageChange="GeheZuSeite" />
+    <div class="table-responsive">
+        <table class="table table-sm">
+            <thead>
+                <tr>
+                    <th style="cursor: pointer;" @onclick='() => SortiereNach("Artikelnummer")'>Artikelnummer@(Pfeil("Artikelnummer"))</th>
+                    <th style="cursor: pointer;" @onclick='() => SortiereNach("Bezeichnung")'>Bezeichnung@(Pfeil("Bezeichnung"))</th>
+                    <th>Marke</th>
+                    <th class="text-end">MwSt (%)</th>
+                    <th class="text-end">Varianten</th>
+                    <th>Aktiv</th>
+                    <th style="cursor: pointer;" @onclick='() => SortiereNach("Geaendert")'>Zuletzt geändert@(Pfeil("Geaendert"))</th>
+                </tr>
+            </thead>
+            <tbody>
+                @foreach (var z in _zeilen)
+                {
+                    <tr>
+                        <td><a href="@($"/artikel-bearbeiten/{z.ArtikelID}")">@z.Artikelnummer</a></td>
+                        <td>@z.Bezeichnung</td>
+                        <td>@z.Markenname</td>
+                        <td class="text-end">@z.Mehrwertsteuersatz.ToString("N2", German)</td>
+                        <td class="text-end">@z.VariantenAnzahl.ToString("N0", German)</td>
+                        <td>@(z.Aktiv ? "ja" : "nein")</td>
+                        <td>@GermanTime.Format(z.GeaendertAm)</td>
+                    </tr>
+                }
+            </tbody>
+        </table>
+    </div>
+    <PaginationControls Page="_seite" TotalPages="_seitenAnzahl" OnPageChange="GeheZuSeite" />
+}
+
+@code {
+    private static readonly System.Globalization.CultureInfo German = System.Globalization.CultureInfo.GetCultureInfo("de-DE");
+    private const int Seitengroesse = 20;
+
+    private sealed record Zeile(
+        int ArtikelID, string Artikelnummer, string Bezeichnung, string? Markenname,
+        decimal Mehrwertsteuersatz, int VariantenAnzahl, bool Aktiv, DateTime GeaendertAm);
+
+    private List<Zeile> _zeilen = [];
+    private string _suche = "";
+    private string _gesuchtNach = "";
+    private bool _nurAktive;
+    private int _seite = 1;
+    private int _seitenAnzahl = 1;
+    private string _sortSpalte = "Artikelnummer";
+    private bool _aufsteigend = true;
+
+    protected override async Task LadeAsync()
+    {
+        _zeilen = [];
+        if (MandantNr is not { } mandantNr) return;
+
+        await using var db = await DbFactory.CreateDbContextAsync();
+        var abfrage = db.Artikel.AsNoTracking().Where(a => a.MandantNr == mandantNr);
+        if (_nurAktive)
+        {
+            abfrage = abfrage.Where(a => a.Aktiv);
+        }
+
+        if (_gesuchtNach.Length > 0)
+        {
+            var suchtext = _gesuchtNach;
+            abfrage = abfrage.Where(a => a.Artikelnummer.Contains(suchtext)
+                || a.Bezeichnung.Contains(suchtext)
+                || a.Varianten.Any(v => v.SKU.Contains(suchtext)));
+        }
+
+        var gesamt = await abfrage.CountAsync();
+        _seitenAnzahl = Math.Max(1, (int)Math.Ceiling(gesamt / (double)Seitengroesse));
+        _seite = Math.Clamp(_seite, 1, _seitenAnzahl);
+
+        IOrderedQueryable<Models.Artikel> sortiert = _sortSpalte switch
+        {
+            "Bezeichnung" => _aufsteigend ? abfrage.OrderBy(a => a.Bezeichnung) : abfrage.OrderByDescending(a => a.Bezeichnung),
+            "Geaendert" => _aufsteigend ? abfrage.OrderBy(a => a.GeaendertAm) : abfrage.OrderByDescending(a => a.GeaendertAm),
+            _ => _aufsteigend ? abfrage.OrderBy(a => a.Artikelnummer) : abfrage.OrderByDescending(a => a.Artikelnummer),
+        };
+
+        _zeilen = await sortiert
+            .Skip((_seite - 1) * Seitengroesse)
+            .Take(Seitengroesse)
+            .Select(a => new Zeile(
+                a.ArtikelID, a.Artikelnummer, a.Bezeichnung, a.Marke == null ? null : a.Marke.Markenname,
+                a.Mehrwertsteuersatz, a.Varianten.Count, a.Aktiv, a.GeaendertAm))
+            .ToListAsync();
+    }
+
+    private async Task Suchen()
+    {
+        _gesuchtNach = _suche.Trim();
+        _seite = 1;
+        await LadeAsync();
+    }
+
+    private async Task SucheTaste(KeyboardEventArgs e)
+    {
+        if (e.Key == "Enter") await Suchen();
+    }
+
+    private async Task NurAktiveGeaendert(ChangeEventArgs e)
+    {
+        _nurAktive = e.Value is true;
+        _seite = 1;
+        await LadeAsync();
+    }
+
+    private async Task SortiereNach(string spalte)
+    {
+        if (_sortSpalte == spalte)
+        {
+            _aufsteigend = !_aufsteigend;
+        }
+        else
+        {
+            _sortSpalte = spalte;
+            _aufsteigend = true;
+        }
+
+        _seite = 1;
+        await LadeAsync();
+    }
+
+    private string Pfeil(string spalte) => _sortSpalte != spalte ? "" : _aufsteigend ? " ▲" : " ▼";
+
+    private async Task GeheZuSeite(int seite)
+    {
+        if (seite < 1 || seite > _seitenAnzahl) return;
+        _seite = seite;
+        await LadeAsync();
+    }
+}

@@ -1,0 +1,14 @@
+@if (TotalPages > 1)
+{
+    <div class="d-flex align-items-center gap-2 mb-3">
+        <button type="button" class="btn btn-sm btn-primary" @onclick="() => OnPageChange.InvokeAsync(Page - 1)" disabled="@(Page <= 1)">« Zurück</button>
+        <span>Seite @Page von @TotalPages</span>
+        <button type="button" class="btn btn-sm btn-primary" @onclick="() => OnPageChange.InvokeAsync(Page + 1)" disabled="@(Page >= TotalPages)">Weiter »</button>
+    </div>
+}
+
+@code {
+    [Parameter] public int Page { get; set; }
+    [Parameter] public int TotalPages { get; set; }
+    [Parameter] public EventCallback<int> OnPageChange { get; set; }
+}

@@ -1,0 +1,114 @@
+@page "/mandanten"
+@using Microsoft.AspNetCore.Authorization
+@using Microsoft.EntityFrameworkCore
+@using ShopifySQL.Web.Data
+@using ShopifySQL.Web.Models
+@using ShopifySQL.Web.Services
+@attribute [Authorize(Policy = "AdminOnly")]
+@rendermode InteractiveServer
+@inject IDbContextFactory<AppDbContext> DbFactory
+@inject NavigationManager Nav
+
+<PageTitle>Mandanten</PageTitle>
+
+<h1>Mandanten</h1>
+
+@if (!string.IsNullOrEmpty(_fehler))
+{
+    <div class="alert alert-danger">@_fehler</div>
+}
+
+<div class="border rounded p-3 mb-3">
+    <h5>Mandanten</h5>
+    <table class="table table-sm calc-table mb-0" style="width: auto;">
+        <thead>
+            <tr>
+                <th class="text-end">Nr.</th>
+                <th>Firmenname</th>
+                <th>Ort</th>
+                <th>Aktiv</th>
+            </tr>
+        </thead>
+        <tbody>
+            @foreach (var z in _zeilen)
+            {
+                <tr>
+                    <td class="text-end">@z.MandantNr</td>
+                    <td style="text-align: left;">
+                        <a class="list-link" href="/mandant-bearbeiten/@z.MandantNr">@z.Bezeichnung</a>
+                    </td>
+                    <td style="text-align: left;">@z.Ort</td>
+                    <td style="text-align: left;">@(z.Aktiv ? "ja" : "nein")</td>
+                </tr>
+            }
+        </tbody>
+    </table>
+</div>
+
+<div class="border rounded p-3 mb-3">
+    <h5>Neuen Mandanten anlegen</h5>
+    <table class="table table-sm calc-table mb-0" style="width: auto;">
+        <tbody>
+            <tr>
+                <td class="calc-label">Mandantennummer</td>
+                <td><input type="number" class="form-control form-control-sm" style="width: 110px; text-align: right;" min="1" @bind="_neueNr" /></td>
+            </tr>
+            <tr>
+                <td class="calc-label">Firmenname</td>
+                <td><input class="form-control form-control-sm" style="width: 320px;" maxlength="200" @bind="_neueBezeichnung" /></td>
+            </tr>
+        </tbody>
+    </table>
+    <button type="button" class="btn btn-primary mt-3" @onclick="Anlegen">Mandant anlegen</button>
+</div>
+
+@code {
+    private sealed class Zeile
+    {
+        public int MandantNr { get; init; }
+        public string Bezeichnung { get; init; } = "";
+        public string? Ort { get; init; }
+        public bool Aktiv { get; init; }
+    }
+
+    private List<Zeile> _zeilen = [];
+    private int _neueNr;
+    private string _neueBezeichnung = "";
+    private string? _fehler;
+
+    protected override async Task OnInitializedAsync() => await Laden();
+
+    private async Task Laden()
+    {
+        await using var db = await DbFactory.CreateDbContextAsync();
+        _zeilen = await db.Mandanten.AsNoTracking().OrderBy(m => m.MandantNr)
+            .Select(m => new Zeile { MandantNr = m.MandantNr, Bezeichnung = m.Bezeichnung, Ort = m.Ort, Aktiv = m.Aktiv })
+            .ToListAsync();
+    }
+
+    private async Task Anlegen()
+    {
+        _fehler = null;
+        var bezeichnung = _neueBezeichnung.Trim();
+        if (_neueNr < 1 || bezeichnung.Length == 0)
+        {
+            _fehler = "Bitte Mandantennummer (ab 1) und Firmenname eingeben.";
+            return;
+        }
+
+        await using var db = await DbFactory.CreateDbContextAsync();
+        db.Mandanten.Add(new Mandant { MandantNr = _neueNr, Bezeichnung = bezeichnung });
+        try
+        {
+            await db.SaveChangesAsync();
+        }
+        catch (DbUpdateException ex) when (DbFehler.IstEindeutigkeitsverletzung(ex))
+        {
+            _fehler = $"Die Mandantennummer {_neueNr} gibt es bereits.";
+            return;
+        }
+
+        // Adresse, Nummern und Logo pflegt man direkt anschließend in der Bearbeiten-Maske.
+        Nav.NavigateTo($"/mandant-bearbeiten/{_neueNr}");
+    }
+}

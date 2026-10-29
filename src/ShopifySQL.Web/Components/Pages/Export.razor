@@ -1,0 +1,29 @@
+@page "/export"
+@inherits MandantSeite
+@rendermode InteractiveServer
+
+<PageTitle>Export</PageTitle>
+
+<h1>Export</h1>
+
+@if (MandantNr is null)
+{
+    <div class="alert alert-warning">Dem Konto ist kein Mandant zugeordnet.</div>
+    return;
+}
+
+<div class="border rounded p-3 mb-3">
+    <div class="d-flex align-items-center gap-3 mb-2">
+        <h5 class="mb-0">Artikelbestände</h5>
+        <a class="btn btn-sm btn-primary" href="/export/artikelbestaende?mandantNr=@MandantNr" download data-enhance-nav="false">Download</a>
+    </div>
+    <p class="mb-0">
+        Alle Bestände des Mandanten als Excel-Datei mit den Spalten <strong>Artikelnummer</strong>,
+        <strong>Lagerplatz</strong> und <strong>Menge</strong>. Die Datei hat dasselbe Format wie der
+        <a href="/import">Import</a> und kann nach einer Änderung dort wieder eingelesen werden.
+    </p>
+</div>
+
+@code {
+    protected override Task LadeAsync() => Task.CompletedTask;
+}

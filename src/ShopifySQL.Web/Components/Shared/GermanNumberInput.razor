@@ -1,0 +1,58 @@
+@typeparam TValue where TValue : struct, IParsable<TValue>, IFormattable
+
+@* Native <input type="number"> kann laut HTML-Spec keine Tausendertrennzeichen im
+   value-Attribut anzeigen - deshalb hier ein Text-Input, das im Ruhezustand
+   (nicht fokussiert) mit deutschem Format (Tausenderpunkt/Dezimalkomma) anzeigt
+   und beim Verlassen des Felds (onchange) geparst wird. Während der Eingabe selbst
+   wird bewusst NICHT neu formatiert, damit der Cursor nicht mitten im Tippen springt. *@
+<input class="form-control form-control-sm" style="width: 110px; text-align: right;"
+       value="@FormattedValue" @onchange="HandleChange" inputmode="decimal" data-german-number-input disabled="@Disabled" />
+
+@code {
+    [Parameter] public TValue Value { get; set; }
+    [Parameter] public EventCallback<TValue> ValueChanged { get; set; }
+    [Parameter] public bool Disabled { get; set; }
+
+    // Für Prozent-Abweichungen vom Basiswert (z. B. Szenario-/Matrix-Bandbreiten in
+    // ScenarioFactorSetEditor.razor) - macht positive Werte durch ein explizites "+" auf
+    // Anhieb als Erhöhung erkennbar, statt nur implizit am fehlenden Vorzeichen.
+    [Parameter] public bool ShowPlusSign { get; set; }
+
+    // Anzahl Nachkommastellen (Standard 2, z. B. Geldbeträge) - für ganzzahlige Prozentwerte
+    // (siehe PercentStepInput.razor) auf 0 gesetzt. Bei TValue == int ist Value ohnehin immer
+    // ganzzahlig, daher dort unabhängig von diesem Parameter stets "N0".
+    [Parameter] public int DecimalPlaces { get; set; } = 2;
+
+    private static readonly System.Globalization.CultureInfo German = System.Globalization.CultureInfo.GetCultureInfo("de-DE");
+
+    private string FormattedValue
+    {
+        get
+        {
+            var format = typeof(TValue) == typeof(int) ? "N0" : $"N{DecimalPlaces}";
+            var formatted = Value.ToString(format, German);
+            return ShowPlusSign && !formatted.StartsWith('-') ? "+" + formatted : formatted;
+        }
+    }
+
+    private async Task HandleChange(ChangeEventArgs e)
+    {
+        var text = e.Value?.ToString();
+
+        // Leeres Feld ("kein Wert") soll rechnerisch wie 0 behandelt werden, statt den
+        // zuletzt gültigen Wert stillschweigend beizubehalten - sonst wirkt das Ergebnis
+        // widersprüchlich (Feld zeigt leer, Berechnung nutzt aber noch den alten Wert).
+        if (string.IsNullOrWhiteSpace(text))
+        {
+            Value = default;
+            await ValueChanged.InvokeAsync(Value);
+            return;
+        }
+
+        if (TValue.TryParse(text, German, out var parsed))
+        {
+            Value = parsed;
+            await ValueChanged.InvokeAsync(Value);
+        }
+    }
+}
