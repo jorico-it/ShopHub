@@ -1,5 +1,6 @@
 @page "/artikeletiketten"
 @using System.Globalization
+@using System.Text.Json
 @using Microsoft.EntityFrameworkCore
 @using ShopHub.Web.Data
 @using ShopHub.Web.Services
@@ -158,7 +159,11 @@
                 <div class="etikett-unten">
                     <div class="etikett-text">
                         <div class="etikett-artnr">@z.Artikelnummer</div>
-                        <div class="etikett-name">@z.Anzeigename</div>
+                        <div class="etikett-name">@(z.IstBundle ? "Bundle: " : "")@z.Anzeigename</div>
+                        @if (z.IstBundle)
+                        {
+                            <div class="etikett-bundle">@string.Join(", ", z.BundleNamen)</div>
+                        }
                     </div>
                     <div class="etikett-code">
                         <div class="etikett-barcode"><BarcodeSvg Module="z.Module" ModulbreiteMm="_modulbreiteMm" /></div>
@@ -194,6 +199,9 @@
         public string SKU { get; init; } = "";
         public string Anzeigename { get; init; } = "";
         public string GTIN { get; init; } = "";
+        // Namen der Bestandteile, wenn die Variante ein Bundle ist (mit "2 x " bei Menge über 1); sonst leer.
+        public IReadOnlyList<string> BundleNamen { get; init; } = [];
+        public bool IstBundle => BundleNamen.Count > 0;
         public int? MarkeID { get; init; }
         public string? Markenname { get; init; }
         public bool HatMarkenlogo { get; init; }
@@ -254,6 +262,7 @@
             .Select(v => new
             {
                 v.ArtikelvarianteID, v.Artikel!.Artikelnummer, v.SKU, v.Artikel.Bezeichnung, v.Variantenname, v.GTIN,
+                v.BundleElemente,
                 v.Artikel.MarkeID,
                 Markenname = v.Artikel.Marke != null ? v.Artikel.Marke.Markenname : null,
                 // Nur ob ein Markenlogo existiert, nicht die Bilddaten laden.
@@ -263,6 +272,18 @@
             .ToListAsync();
 
         _abgeschnitten = treffer.Count > MaxZeilen;
+
+        // Bestandteile aller angezeigten Bundles auf einmal auflösen: SKU -> Bezeichnung.
+        var bundles = treffer.Take(MaxZeilen).ToDictionary(t => t.ArtikelvarianteID, t => LeseBundleElemente(t.BundleElemente));
+        var bundleSkus = bundles.Values.SelectMany(e => e).Select(e => e.SKU).Distinct().ToList();
+        Dictionary<string, string> bezeichnungen = bundleSkus.Count == 0
+            ? []
+            : (await db.Artikelvarianten.AsNoTracking()
+                .Where(v => v.MandantNr == mandantNr && bundleSkus.Contains(v.SKU))
+                .Select(v => new { v.SKU, v.Artikel!.Bezeichnung, v.Variantenname })
+                .ToListAsync())
+                .ToDictionary(v => v.SKU, v => Anzeigename(v.Bezeichnung, v.Variantenname), StringComparer.OrdinalIgnoreCase);
+
         _zeilen = treffer.Take(MaxZeilen).Select(t =>
         {
             // Schon gewählte Zeilen weiterverwenden, damit ihre Anzahl sichtbar bleibt.
@@ -274,8 +295,11 @@
                 ArtikelvarianteID = t.ArtikelvarianteID,
                 Artikelnummer = t.Artikelnummer,
                 SKU = t.SKU,
-                Anzeigename = string.IsNullOrWhiteSpace(t.Variantenname) ? t.Bezeichnung : $"{t.Bezeichnung} – {t.Variantenname}",
+                Anzeigename = Anzeigename(t.Bezeichnung, t.Variantenname),
                 GTIN = t.GTIN!.Trim(),
+                BundleNamen = bundles[t.ArtikelvarianteID]
+                    .Select(e => (e.Menge > 1 ? $"{e.Menge} x " : "") + bezeichnungen.GetValueOrDefault(e.SKU, e.SKU))
+                    .ToList(),
                 MarkeID = t.MarkeID,
                 Markenname = t.Markenname,
                 HatMarkenlogo = t.HatMarkenlogo,
@@ -284,6 +308,35 @@
                 Fehler = fehler,
             };
         }).ToList();
+    }
+
+    private static string Anzeigename(string bezeichnung, string? variantenname) =>
+        string.IsNullOrWhiteSpace(variantenname) ? bezeichnung : $"{bezeichnung} – {variantenname}";
+
+    // BundleElemente ist ein JSON-Array [{"SKU":"B1008","Menge":1}]; ein nicht lesbarer Inhalt zählt als "kein Bundle".
+    private static List<(string SKU, int Menge)> LeseBundleElemente(string? json)
+    {
+        var elemente = new List<(string, int)>();
+        if (string.IsNullOrWhiteSpace(json)) return elemente;
+
+        try
+        {
+            using var dokument = JsonDocument.Parse(json);
+            foreach (var element in dokument.RootElement.EnumerateArray())
+            {
+                var sku = element.GetProperty("SKU").GetString()?.Trim();
+                if (!string.IsNullOrEmpty(sku))
+                {
+                    elemente.Add((sku, element.GetProperty("Menge").GetInt32()));
+                }
+            }
+        }
+        catch (Exception ex) when (ex is JsonException or InvalidOperationException or KeyNotFoundException or FormatException)
+        {
+            return [];
+        }
+
+        return elemente;
     }
 
     private void SetzeAnzahl(Zeile zeile, string? wert)
