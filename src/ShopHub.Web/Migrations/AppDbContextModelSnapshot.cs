@@ -603,8 +603,8 @@ namespace ShopHub.Web.Migrations
                         .HasColumnType("nvarchar(50)");
 
                     b.Property<string>("Iban")
-                        .HasMaxLength(34)
-                        .HasColumnType("nvarchar(34)");
+                        .HasMaxLength(45)
+                        .HasColumnType("nvarchar(45)");
 
                     b.Property<string>("Land")
                         .HasMaxLength(100)

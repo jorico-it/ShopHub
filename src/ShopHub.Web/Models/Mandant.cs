@@ -38,7 +38,7 @@ public class Mandant : IMitZeitstempel
 
     public string? Bankname { get; set; }
 
-    /// <summary>IBAN ohne Leerzeichen in Großbuchstaben.</summary>
+    /// <summary>IBAN in Großbuchstaben, in Vierergruppen mit Leerzeichen (höchstens 34 Zeichen + 8 Leerzeichen).</summary>
     public string? Iban { get; set; }
 
     /// <summary>Logo als Bilddatei (PNG oder JPEG); wird über <c>/mandant-logo/{MandantNr}</c> ausgeliefert.</summary>

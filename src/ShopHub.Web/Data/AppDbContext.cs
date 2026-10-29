@@ -61,7 +61,7 @@ public class AppDbContext(DbContextOptions<AppDbContext> options) : IdentityDbCo
             e.Property(m => m.Telefon).HasMaxLength(50);
             e.Property(m => m.EMail).HasMaxLength(200);
             e.Property(m => m.Bankname).HasMaxLength(100);
-            e.Property(m => m.Iban).HasMaxLength(34);
+            e.Property(m => m.Iban).HasMaxLength(45);
             // Logo: bewusst ohne HasMaxLength -> varbinary(max); die Größe begrenzt die Oberfläche.
             e.Property(m => m.LogoContentType).HasMaxLength(100);
             KonfiguriereAktivUndZeitstempel(e);

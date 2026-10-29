@@ -53,7 +53,7 @@ Auf einer neuen Maschine zuerst den Connection String hinterlegen:
   mit in Listenabfragen (immer auf die benötigten Spalten projizieren) und wird über den Endpoint
   `/mandant-logo/{MandantNr}` ausgeliefert (Admins jedes, andere nur das des eigenen Mandanten).
   Weiteres Stammdatenfeld: `Geschaeftsfuehrer` (Maske "Geschäftsführer"). Eingaberegeln: Telefon nur Ziffern, Leerzeichen und `+`;
-  Lucid-ID vorne `DE`, danach nur Ziffern (Filter in `wwwroot/js/eingabefilter.js`: `telefon`, `de-ziffern`, `iban`, plus Prüfung beim Speichern). Die IBAN darf mit Leerzeichen eingegeben werden, gespeichert wird sie ohne und in der Maske in Vierergruppen angezeigt.
+  Lucid-ID vorne `DE`, danach nur Ziffern (Filter in `wwwroot/js/eingabefilter.js`: `telefon`, `de-ziffern`, `iban`, plus Prüfung beim Speichern). Die IBAN darf mit Leerzeichen eingegeben werden, gespeichert und angezeigt wird sie in Vierergruppen mit Leerzeichen (Spalte `Iban` nvarchar(45); die Prüfung läuft ohne Leerzeichen).
   Pflege unter `/mandanten` (Liste, nur Admins) und `/mandant-bearbeiten/{MandantNr}`. Die Maske dürfen auch normale
   Benutzer öffnen, aber nur für den Mandanten ihres Kontos: für sie heißt der Menüpunkt statt "Mandanten" **"Firmendaten"**,
   die Maske heißt ebenso und zeigt kein Feld "Aktiv" (das ändern nur Admins); fremde Mandanten erscheinen als "gibt es nicht".

@@ -197,8 +197,8 @@
             .FirstOrDefaultAsync();
 
         _mandant = daten?.Mandant;
-        // Gespeichert wird die IBAN ohne Leerzeichen, angezeigt in Vierergruppen.
-        if (_mandant is not null) _mandant.Iban = IbanGruppiert(_mandant.Iban);
+        // Auch ältere, ohne Leerzeichen gespeicherte IBANs erscheinen in Vierergruppen.
+        if (_mandant is not null) _mandant.Iban = IbanGruppiert(OhneLeerzeichen(_mandant.Iban));
         _hatLogo = daten?.HatLogo ?? false;
         _logoVersion = daten?.GeaendertAm.Ticks ?? 0;
     }
@@ -269,7 +269,7 @@
         if (ziel is null) return;
 
         ziel.Bankname = NullWennLeer(_mandant.Bankname);
-        ziel.Iban = iban;
+        ziel.Iban = IbanGruppiert(iban);
         ziel.Bezeichnung = bezeichnung;
         // Nur Admins (de)aktivieren Mandanten; das Feld ist für andere gar nicht sichtbar.
         if (_istAdmin) ziel.Aktiv = _mandant.Aktiv;
