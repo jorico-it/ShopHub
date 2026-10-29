@@ -170,5 +170,5 @@ pushen"); nie `bin`, `obj`, `.vs` oder Zugangsdaten einchecken.
 ## Namen
 
 Visual-Studio-Projekt `ShopHub.Web` (Ordner `src/ShopHub.Web`), Solution `ShopHub.sln`, Namespace `ShopHub.Web` - bis 2026-10-29
-hieß es `ShopifySQL.Web`. Der übergeordnete Ordner `Dropbox\AI_Projects\ShopifySQL` trägt noch den alten Namen. Die User-Secrets-ID
+hieß es `ShopifySQL.Web`. Der Projektordner heißt seit 2026-10-29 ebenfalls `Dropbox\AI_Projects\ShopHub`. Die User-Secrets-ID
 (`7d2f4c1e-...`) ist gleich geblieben, die Secrets gelten also weiter.
