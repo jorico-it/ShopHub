@@ -94,7 +94,7 @@
                 <td><input class="form-control form-control-sm" style="width: 220px;" maxlength="20" placeholder="z. B. DE123456789" data-eingabefilter="land-ziffern" @bind="_mandant.UstIdNr" /></td>
             </tr>
             <tr>
-                <td class="calc-label">EORI-Nummer</td>
+                <td class="calc-label">EORI Nummer</td>
                 <td><input class="form-control form-control-sm" style="width: 220px;" maxlength="20" placeholder="z. B. DE123456789012345" data-eingabefilter="land-ziffern" @bind="_mandant.EoriNummer" /></td>
             </tr>
             <tr>
@@ -260,7 +260,7 @@
         var eoriNummer = OhneLeerzeichen(_mandant.EoriNummer);
         if (eoriNummer is not null && !LandMitZiffern(eoriNummer))
         {
-            _fehler = "Die EORI-Nummer muss mit zwei Buchstaben beginnen, danach nur Ziffern.";
+            _fehler = "Die EORI Nummer muss mit zwei Buchstaben beginnen, danach nur Ziffern.";
             return;
         }
 
