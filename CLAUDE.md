@@ -157,7 +157,7 @@ liefert dasselbe Format.
 
 Beim Öffnen eines vorhandenen Artikels ist seine erste Variante (kleinste `ArtikelvarianteID`) gleich zur Bearbeitung
 aufgeklappt; hat der Artikel noch keine, öffnet sich das Formular für die erste (SKU mit der Artikelnummer vorbelegt, auch direkt
-nach dem Anlegen eines neuen Artikels). Die erste Variante lässt sich nicht löschen (Schaltfläche gesperrt, zusätzlich
+nach dem Anlegen eines neuen Artikels). Nach dem Speichern einer Variante bleibt sie zum Weiterbearbeiten offen (neu geladen, eine neue mit ihrer ID). Die erste Variante lässt sich nicht löschen (Schaltfläche gesperrt, zusätzlich
 Prüfung beim Löschen gegen die Datenbank).
 
 ## Betrieb

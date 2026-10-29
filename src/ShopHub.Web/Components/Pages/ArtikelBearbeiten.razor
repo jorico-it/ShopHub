@@ -604,9 +604,22 @@
             return;
         }
 
-        _meldung = $"Variante {_variante.SKU} gespeichert.";
-        _variante = null;
+        var sku = _variante.SKU;
+        var id = _variante.ArtikelvarianteID;
         await LadeAsync();
+
+        // Die gespeicherte Variante bleibt zum Weiterbearbeiten offen (mit den frisch geladenen Werten, bei einer neuen mit ihrer ID).
+        var gespeichert = _varianten.FirstOrDefault(v => v.ArtikelvarianteID == id);
+        if (gespeichert is null)
+        {
+            _variante = null;
+        }
+        else
+        {
+            VarianteBearbeiten(gespeichert);
+        }
+
+        _meldung = $"Variante {sku} gespeichert.";
     }
 
     private string? PruefeVariante(out decimal? einkaufspreis, out decimal? gewicht)
