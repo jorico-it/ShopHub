@@ -2,6 +2,7 @@
 //   "ziffern"       - nur Ziffern (PLZ, Telefon)
 //   "telefon"       - Ziffern, Leerzeichen und "+" (Telefonnummer)
 //   "land-ziffern"  - zwei Buchstaben als Ländercode, ab der 3. Stelle nur Ziffern (IBAN, USt-IdNr., EORI)
+//   "iban"          - wie "land-ziffern", zusätzlich einzelne Leerzeichen (IBAN)
 //   "de-ziffern"    - vorne "DE", danach nur Ziffern (Lucid-ID)
 // Ein einziger dokumentweiter Listener reicht und bleibt auch nach dem Neu-Rendern von Blazor gültig.
 // Die Filter arbeiten Zeichen für Zeichen von links, damit sich die Cursorposition aus dem gefilterten
@@ -15,6 +16,16 @@ function filtere(art, text) {
             if (/[0-9]/.test(zeichen)) ergebnis += zeichen;
         } else if (art === "telefon") {
             if (/[0-9 +]/.test(zeichen)) ergebnis += zeichen;
+        } else if (art === "iban") {
+            // Wie "land-ziffern", aber mit einzelnen Leerzeichen (nicht am Anfang, nicht doppelt) zum Gruppieren.
+            const stellen = ergebnis.replaceAll(" ", "").length;
+            if (zeichen === " ") {
+                if (ergebnis.length > 0 && !ergebnis.endsWith(" ")) ergebnis += zeichen;
+            } else if (stellen < 2) {
+                if (/[A-Za-z]/.test(zeichen)) ergebnis += zeichen.toUpperCase();
+            } else if (/[0-9]/.test(zeichen)) {
+                ergebnis += zeichen;
+            }
         } else if (art === "de-ziffern") {
             if (ergebnis.length < 2) {
                 if (zeichen.toUpperCase() === "DE"[ergebnis.length]) ergebnis += zeichen.toUpperCase();
