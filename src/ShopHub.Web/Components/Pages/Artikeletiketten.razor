@@ -46,8 +46,9 @@
     <div class="border rounded p-3 mb-3">
         <h5>Varianten auswählen</h5>
         <div class="d-flex align-items-center gap-3 mb-2">
-            <input class="form-control form-control-sm" style="width: 320px;" placeholder="Suche: Artikelnr., SKU, EAN, Bezeichnung, Marke"
-                   @bind="_suche" @bind:event="oninput" @bind:after="LadeAsync" />
+            <input class="form-control form-control-sm" style="width: 320px;" placeholder="Artikelnummer, Bezeichnung, SKU, EAN oder Marke"
+                   @bind="_suche" @bind:event="oninput" @onkeydown="SucheTaste" />
+            <button type="button" class="btn btn-sm btn-primary" @onclick="Suchen">Suchen</button>
             <label class="mb-0">
                 <input type="checkbox" class="form-check-input" @bind="_nurAktive" @bind:after="LadeAsync" /> nur aktive
             </label>
@@ -192,7 +193,9 @@
     private List<Zeile> _zeilen = [];
     // Gewählte Varianten bleiben erhalten, auch wenn die Suche sie gerade nicht anzeigt.
     private readonly Dictionary<int, Zeile> _auswahl = [];
+    // _suche ist der getippte Text, _gesuchtNach der Text der letzten Suche (Schaltfläche "Suchen" oder Eingabetaste, wie in der Artikelliste).
     private string _suche = "";
+    private string _gesuchtNach = "";
     private bool _nurAktive = true;
     private bool _abgeschnitten;
     private int _breiteMm = 152;
@@ -224,7 +227,7 @@
             abfrage = abfrage.Where(v => v.Aktiv && v.Artikel!.Aktiv);
         }
 
-        var suche = _suche.Trim();
+        var suche = _gesuchtNach;
         if (suche.Length > 0)
         {
             abfrage = abfrage.Where(v => v.SKU.Contains(suche) || v.GTIN!.Contains(suche)
@@ -345,6 +348,17 @@
         }
 
         return elemente;
+    }
+
+    private async Task Suchen()
+    {
+        _gesuchtNach = _suche.Trim();
+        await LadeAsync();
+    }
+
+    private async Task SucheTaste(KeyboardEventArgs e)
+    {
+        if (e.Key == "Enter") await Suchen();
     }
 
     private void SetzeAnzahl(Zeile zeile, string? wert)
