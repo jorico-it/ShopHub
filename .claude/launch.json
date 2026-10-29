@@ -2,15 +2,15 @@
   "version": "0.0.1",
   "configurations": [
     {
-      "name": "shopifysql-web",
+      "name": "shophub-web",
       "runtimeExecutable": "dotnet",
-      "runtimeArgs": ["run", "--project", "src/ShopifySQL.Web", "--launch-profile", "http"],
+      "runtimeArgs": ["run", "--project", "src/ShopHub.Web", "--launch-profile", "http"],
       "port": 5109
     },
     {
-      "name": "shopifysql-web-https",
+      "name": "shophub-web-https",
       "runtimeExecutable": "dotnet",
-      "runtimeArgs": ["run", "--project", "src/ShopifySQL.Web", "--launch-profile", "https"],
+      "runtimeArgs": ["run", "--project", "src/ShopHub.Web", "--launch-profile", "https"],
       "port": 7103,
       "url": "https://localhost:7103"
     }

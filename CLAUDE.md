@@ -9,8 +9,8 @@ Web-App zur Pflege der Daten für Shopify in der SQL-Server-Datenbank `Shopify` 
   UI und Backend, kein separates Frontend-Build.
 - EF Core mit SQL Server. Der Connection String liegt **nicht** in `appsettings.json` (dort nur
   ein leerer Platzhalter, da die Datei eingecheckt ist), sondern lokal in den .NET User Secrets
-  dieses Projekts (`dotnet user-secrets list --project src/ShopifySQL.Web`).
-- Projektmappe: `ShopifySQL.sln` im Root, Code unter `src/ShopifySQL.Web`.
+  dieses Projekts (`dotnet user-secrets list --project src/ShopHub.Web`).
+- Projektmappe: `ShopHub.sln` im Root, Code unter `src/ShopHub.Web`.
 - Layout/Farbschema (orange Sidebar, Bootstrap) stammt aus der Marktanalyse-App
   (`Dropbox\AI_Projects\Marktanalyse_App`).
 
@@ -22,7 +22,7 @@ Web-App zur Pflege der Daten für Shopify in der SQL-Server-Datenbank `Shopify` 
 ## Struktur
 
 ```
-src/ShopifySQL.Web/
+src/ShopHub.Web/
   Components/   Razor-Komponenten (Pages, Layout)
   Data/         AppDbContext (IdentityDbContext)
   Models/       Entities (ApplicationUser)
@@ -35,13 +35,13 @@ src/ShopifySQL.Web/
 
 ```
 dotnet build                                 # Projekt bauen
-dotnet run --project src/ShopifySQL.Web      # lokal starten (http://localhost:5109)
-dotnet ef migrations add <Name> --project src/ShopifySQL.Web
-dotnet ef database update --project src/ShopifySQL.Web
+dotnet run --project src/ShopHub.Web      # lokal starten (http://localhost:5109)
+dotnet ef migrations add <Name> --project src/ShopHub.Web
+dotnet ef database update --project src/ShopHub.Web
 ```
 
 Auf einer neuen Maschine zuerst den Connection String hinterlegen:
-`dotnet user-secrets set "ConnectionStrings:Default" "..." --project src/ShopifySQL.Web`
+`dotnet user-secrets set "ConnectionStrings:Default" "..." --project src/ShopHub.Web`
 
 ## Fachliche Tabellen
 
@@ -166,3 +166,9 @@ Repository: `https://github.com/jorico-it/ShopHub` (privat), Branch `main`. Nach
 committet und - bei fehlerfreiem Build - sofort gepusht (Commit-Nachrichten auf Deutsch, eine Migration gehört in denselben
 Commit wie der Code, der sie braucht). Nicht pushen bei rotem Build, halbfertiger Arbeit oder auf Wunsch ("noch nicht
 pushen"); nie `bin`, `obj`, `.vs` oder Zugangsdaten einchecken.
+
+## Namen
+
+Visual-Studio-Projekt `ShopHub.Web` (Ordner `src/ShopHub.Web`), Solution `ShopHub.sln`, Namespace `ShopHub.Web` - bis 2026-10-29
+hieß es `ShopifySQL.Web`. Der übergeordnete Ordner `Dropbox\AI_Projects\ShopifySQL` trägt noch den alten Namen. Die User-Secrets-ID
+(`7d2f4c1e-...`) ist gleich geblieben, die Secrets gelten also weiter.

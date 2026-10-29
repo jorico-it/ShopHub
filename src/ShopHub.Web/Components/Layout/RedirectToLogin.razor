@@ -1,0 +1,20 @@
+@using ShopHub.Web.Services
+@inject NavigationManager Navigation
+
+@code {
+    [CascadingParameter] private Task<AuthenticationState>? AuthState { get; set; }
+
+    // Ein angemeldetes Konto, das sein Passwort noch ändern muss, wird abgewiesen - es soll dann zur
+    // Passwortseite, nicht zur Login-Seite.
+    protected override async Task OnInitializedAsync()
+    {
+        var user = AuthState is null ? null : (await AuthState).User;
+        if (user?.HasClaim(ApplicationUserClaimsPrincipalFactory.MussPasswortAendernClaimType, "true") == true)
+        {
+            Navigation.NavigateTo("/passwort-aendern", forceLoad: true);
+            return;
+        }
+
+        Navigation.NavigateTo($"/login?returnUrl={Uri.EscapeDataString(Navigation.Uri)}", forceLoad: true);
+    }
+}

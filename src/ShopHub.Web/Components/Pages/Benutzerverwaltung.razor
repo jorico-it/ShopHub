@@ -1,0 +1,248 @@
+@page "/benutzerverwaltung"
+@using ShopHub.Web.Data
+@using ShopHub.Web.Models
+@using Microsoft.AspNetCore.Authorization
+@using Microsoft.AspNetCore.Identity
+@using Microsoft.EntityFrameworkCore
+@attribute [Authorize(Policy = "AdminOnly")]
+@rendermode InteractiveServer
+@inject UserManager<ApplicationUser> UserManager
+@inject IDbContextFactory<AppDbContext> DbFactory
+
+<PageTitle>Benutzerverwaltung</PageTitle>
+
+<h1>Benutzerverwaltung</h1>
+
+@if (!string.IsNullOrEmpty(_message))
+{
+    <div class="alert alert-success">@_message</div>
+}
+@if (!string.IsNullOrEmpty(_error))
+{
+    <div class="alert alert-danger" style="white-space: pre-wrap;">@_error</div>
+}
+
+<h2 class="h5">Benutzer</h2>
+
+<table class="table table-sm align-middle w-auto">
+    <thead>
+        <tr>
+            <th>E-Mail</th>
+            <th>Admin</th>
+            <th>Mandant</th>
+            <th>Neues Passwort</th>
+            <th></th>
+        </tr>
+    </thead>
+    <tbody>
+        @foreach (var u in _users)
+        {
+            <tr>
+                <td>
+                    @u.Email
+                    @if (u.MussPasswortAendern)
+                    {
+                        <span class="text-muted">(Passwortwechsel offen)</span>
+                    }
+                </td>
+                <td>
+                    <input type="checkbox" class="form-check-input" checked="@u.IsAdmin"
+                           @onchange="e => ToggleAdmin(u, (bool)e.Value!)" />
+                </td>
+                <td>
+                    <select class="form-select form-select-sm" style="width: 260px;"
+                            value="@u.MandantNr" @onchange="e => SetMandant(u, e.Value?.ToString())">
+                        @if (u.MandantNr is null)
+                        {
+                            <option value="">– kein Mandant –</option>
+                        }
+                        @foreach (var m in _mandanten)
+                        {
+                            <option value="@m.MandantNr">@m.MandantNr – @m.Bezeichnung</option>
+                        }
+                    </select>
+                </td>
+                <td>
+                    <input type="password" class="form-control form-control-sm" style="width: 180px;"
+                           @bind="_newPasswords[u.Id]" placeholder="Neues Passwort" />
+                </td>
+                <td>
+                    <button type="button" class="btn btn-sm btn-primary" @onclick="() => SetPassword(u)">Setzen</button>
+                </td>
+            </tr>
+        }
+    </tbody>
+</table>
+
+<hr class="my-4" />
+
+<h2 class="h5">Neuen Benutzer anlegen</h2>
+
+<div class="border rounded p-3" style="width: fit-content;">
+    <table class="table table-sm calc-table mb-0" style="width: auto;">
+        <tbody>
+            <tr>
+                <td class="calc-label">E-Mail</td>
+                <td><input class="form-control form-control-sm" style="width: 320px;" @bind="_newEmail" /></td>
+            </tr>
+            <tr>
+                <td class="calc-label">Passwort</td>
+                <td><input type="password" class="form-control form-control-sm" style="width: 320px;" @bind="_newUserPassword" /></td>
+            </tr>
+            <tr>
+                <td class="calc-label">Mandant</td>
+                <td>
+                    <select class="form-select form-select-sm" style="width: 320px;" @bind="_newUserMandantNr">
+                        <option value="">– bitte wählen –</option>
+                        @foreach (var m in _mandanten)
+                        {
+                            <option value="@m.MandantNr">@m.MandantNr – @m.Bezeichnung</option>
+                        }
+                    </select>
+                </td>
+            </tr>
+            <tr>
+                <td class="calc-label">Admin</td>
+                <td style="text-align: left;"><input type="checkbox" class="form-check-input" @bind="_newUserIsAdmin" /></td>
+            </tr>
+        </tbody>
+    </table>
+    <button type="button" class="btn btn-primary mt-2" @onclick="CreateUser">Benutzer anlegen</button>
+</div>
+
+@code {
+    private List<ApplicationUser> _users = [];
+    private readonly Dictionary<string, string> _newPasswords = [];
+
+    private string _newEmail = "";
+    private string _newUserPassword = "";
+    private bool _newUserIsAdmin;
+    private int? _newUserMandantNr;
+    private List<Mandant> _mandanten = [];
+
+    private string? _message;
+    private string? _error;
+
+    protected override async Task OnInitializedAsync() => await LoadUsers();
+
+    private async Task LoadUsers()
+    {
+        await using (var db = await DbFactory.CreateDbContextAsync())
+        {
+            _mandanten = await db.Mandanten.AsNoTracking().OrderBy(m => m.MandantNr)
+                .Select(m => new Mandant { MandantNr = m.MandantNr, Bezeichnung = m.Bezeichnung })
+                .ToListAsync();
+        }
+
+        _users = await UserManager.Users.OrderBy(u => u.Email).ToListAsync();
+        foreach (var u in _users)
+        {
+            _newPasswords.TryAdd(u.Id, "");
+        }
+    }
+
+    private async Task SetMandant(ApplicationUser user, string? value)
+    {
+        _message = null;
+        _error = null;
+        if (!int.TryParse(value, out var mandantNr))
+        {
+            _error = "Ein Benutzer muss einem Mandanten zugeordnet sein.";
+            return;
+        }
+
+        user.MandantNr = mandantNr;
+        var result = await UserManager.UpdateAsync(user);
+        if (result.Succeeded)
+        {
+            _message = $"Mandant für {user.Email} aktualisiert (gilt ab der nächsten Anmeldung).";
+        }
+        else
+        {
+            _error = string.Join("\n", result.Errors.Select(e => e.Description));
+        }
+    }
+
+    private async Task ToggleAdmin(ApplicationUser user, bool isAdmin)
+    {
+        _message = null;
+        _error = null;
+        user.IsAdmin = isAdmin;
+        var result = await UserManager.UpdateAsync(user);
+        if (result.Succeeded)
+        {
+            _message = $"Admin-Status für {user.Email} aktualisiert.";
+        }
+        else
+        {
+            _error = string.Join("\n", result.Errors.Select(e => e.Description));
+        }
+    }
+
+    private async Task SetPassword(ApplicationUser user)
+    {
+        _message = null;
+        _error = null;
+        var newPassword = _newPasswords.GetValueOrDefault(user.Id, "");
+        if (string.IsNullOrWhiteSpace(newPassword))
+        {
+            _error = "Bitte ein neues Passwort eingeben.";
+            return;
+        }
+
+        await UserManager.RemovePasswordAsync(user);
+        // Ein vom Admin vergebenes Passwort kennt der Admin - der Benutzer legt beim nächsten Login ein eigenes fest.
+        user.MussPasswortAendern = true;
+        var result = await UserManager.AddPasswordAsync(user, newPassword);
+        if (result.Succeeded)
+        {
+            _message = $"Passwort für {user.Email} gesetzt.";
+            _newPasswords[user.Id] = "";
+        }
+        else
+        {
+            _error = string.Join("\n", result.Errors.Select(e => e.Description));
+        }
+    }
+
+    private async Task CreateUser()
+    {
+        _message = null;
+        _error = null;
+        if (string.IsNullOrWhiteSpace(_newEmail) || string.IsNullOrWhiteSpace(_newUserPassword))
+        {
+            _error = "Bitte E-Mail und Passwort eingeben.";
+            return;
+        }
+
+        if (_newUserMandantNr is not { } mandantNr || _mandanten.All(m => m.MandantNr != mandantNr))
+        {
+            _error = "Bitte einen Mandanten auswählen - ein Benutzer gehört fest zu einem Mandanten.";
+            return;
+        }
+
+        var user = new ApplicationUser
+        {
+            UserName = _newEmail.Trim(),
+            Email = _newEmail.Trim(),
+            EmailConfirmed = true,
+            IsAdmin = _newUserIsAdmin,
+            MussPasswortAendern = true,
+            MandantNr = mandantNr,
+        };
+        var result = await UserManager.CreateAsync(user, _newUserPassword);
+        if (result.Succeeded)
+        {
+            _message = $"Benutzer {user.Email} angelegt.";
+            _newEmail = "";
+            _newUserPassword = "";
+            _newUserIsAdmin = false;
+            _newUserMandantNr = null;
+            await LoadUsers();
+        }
+        else
+        {
+            _error = string.Join("\n", result.Errors.Select(e => e.Description));
+        }
+    }
+}

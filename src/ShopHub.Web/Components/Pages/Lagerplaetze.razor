@@ -1,0 +1,199 @@
+@page "/lagerplaetze"
+@using Microsoft.EntityFrameworkCore
+@using ShopHub.Web.Data
+@using ShopHub.Web.Models
+@using ShopHub.Web.Services
+@inherits MandantSeite
+@rendermode InteractiveServer
+@inject IDbContextFactory<AppDbContext> DbFactory
+@inject IJSRuntime JS
+
+<PageTitle>Lagerplätze</PageTitle>
+
+<h1>Lagerplätze</h1>
+
+@if (MandantNr is null)
+{
+    <div class="alert alert-warning">Dem Konto ist kein Mandant zugeordnet.</div>
+    return;
+}
+
+@if (!string.IsNullOrEmpty(_meldung))
+{
+    <div class="alert alert-success">@_meldung</div>
+}
+@if (!string.IsNullOrEmpty(_fehler))
+{
+    <div class="alert alert-danger">@_fehler</div>
+}
+
+<div class="border rounded p-3 mb-3">
+    @if (_zeilen.Count == 0)
+    {
+        <p class="text-muted mb-0">Noch keine Lagerplätze angelegt.</p>
+    }
+    else
+    {
+        <table class="table table-sm calc-table mb-0" style="width: auto;">
+            <thead>
+                <tr>
+                    <th>Bezeichnung</th>
+                    <th>Aktiv</th>
+                    <th class="text-end">Bestandszeilen</th>
+                    <th></th>
+                </tr>
+            </thead>
+            <tbody>
+                @foreach (var z in _zeilen)
+                {
+                    <tr>
+                        <td style="text-align: left;">
+                            <input class="form-control form-control-sm" style="width: 280px;" maxlength="100" @bind="z.Bezeichnung" />
+                        </td>
+                        <td style="text-align: left;">
+                            <input type="checkbox" class="form-check-input" @bind="z.Aktiv" />
+                        </td>
+                        <td class="text-end">@z.BestandsZeilen.ToString("N0", German)</td>
+                        <td>
+                            <button type="button" class="btn btn-sm btn-primary" @onclick="() => Speichern(z)">Speichern</button>
+                            <button type="button" class="btn btn-sm btn-outline-danger" @onclick="() => Loeschen(z)">Löschen</button>
+                        </td>
+                    </tr>
+                }
+            </tbody>
+        </table>
+    }
+</div>
+
+<div class="border rounded p-3 mb-3">
+    <h5>Neuen Lagerplatz anlegen</h5>
+    <table class="table table-sm calc-table mb-0" style="width: auto;">
+        <tbody>
+            <tr>
+                <td class="calc-label">Bezeichnung</td>
+                <td><input class="form-control form-control-sm" style="width: 280px;" maxlength="100" @bind="_neueBezeichnung" /></td>
+            </tr>
+        </tbody>
+    </table>
+    <button type="button" class="btn btn-primary mt-3" @onclick="Anlegen">Lagerplatz anlegen</button>
+</div>
+
+@code {
+    private static readonly System.Globalization.CultureInfo German = System.Globalization.CultureInfo.GetCultureInfo("de-DE");
+
+    private sealed class Zeile
+    {
+        public int LagerplatzID { get; init; }
+        public string Bezeichnung { get; set; } = "";
+        public bool Aktiv { get; set; }
+        public int BestandsZeilen { get; init; }
+    }
+
+    private List<Zeile> _zeilen = [];
+    private string _neueBezeichnung = "";
+    private string? _meldung;
+    private string? _fehler;
+
+    protected override async Task LadeAsync()
+    {
+        _zeilen = [];
+        if (MandantNr is not { } mandantNr) return;
+
+        await using var db = await DbFactory.CreateDbContextAsync();
+        _zeilen = await db.Lagerplaetze.AsNoTracking()
+            .Where(l => l.MandantNr == mandantNr)
+            .OrderBy(l => l.Bezeichnung)
+            .Select(l => new Zeile
+            {
+                LagerplatzID = l.LagerplatzID,
+                Bezeichnung = l.Bezeichnung,
+                Aktiv = l.Aktiv,
+                BestandsZeilen = db.ArtikelBestaende.Count(b => b.MandantNr == mandantNr && b.LagerplatzID == l.LagerplatzID),
+            })
+            .ToListAsync();
+    }
+
+    private async Task Anlegen()
+    {
+        _meldung = _fehler = null;
+        var name = _neueBezeichnung.Trim();
+        if (MandantNr is not { } mandantNr) return;
+        if (name.Length == 0)
+        {
+            _fehler = "Bitte eine Bezeichnung eingeben.";
+            return;
+        }
+
+        await using var db = await DbFactory.CreateDbContextAsync();
+        db.Lagerplaetze.Add(new Lagerplatz { MandantNr = mandantNr, Bezeichnung = name });
+        try
+        {
+            await db.SaveChangesAsync();
+        }
+        catch (DbUpdateException ex) when (DbFehler.IstEindeutigkeitsverletzung(ex))
+        {
+            _fehler = $"Den Lagerplatz \"{name}\" gibt es bereits.";
+            return;
+        }
+
+        _meldung = $"Lagerplatz \"{name}\" angelegt.";
+        _neueBezeichnung = "";
+        await LadeAsync();
+    }
+
+    private async Task Speichern(Zeile zeile)
+    {
+        _meldung = _fehler = null;
+        var name = zeile.Bezeichnung.Trim();
+        if (MandantNr is not { } mandantNr) return;
+        if (name.Length == 0)
+        {
+            _fehler = "Die Bezeichnung darf nicht leer sein.";
+            return;
+        }
+
+        await using var db = await DbFactory.CreateDbContextAsync();
+        var lagerplatz = await db.Lagerplaetze.FirstOrDefaultAsync(l => l.LagerplatzID == zeile.LagerplatzID && l.MandantNr == mandantNr);
+        if (lagerplatz is null) return;
+
+        lagerplatz.Bezeichnung = name;
+        lagerplatz.Aktiv = zeile.Aktiv;
+        try
+        {
+            await db.SaveChangesAsync();
+        }
+        catch (DbUpdateException ex) when (DbFehler.IstEindeutigkeitsverletzung(ex))
+        {
+            _fehler = $"Den Lagerplatz \"{name}\" gibt es bereits.";
+            return;
+        }
+
+        _meldung = $"Lagerplatz \"{name}\" gespeichert.";
+        await LadeAsync();
+    }
+
+    private async Task Loeschen(Zeile zeile)
+    {
+        _meldung = _fehler = null;
+        if (MandantNr is not { } mandantNr) return;
+        if (!await JS.InvokeAsync<bool>("confirm", $"Lagerplatz \"{zeile.Bezeichnung}\" wirklich löschen?")) return;
+
+        await using var db = await DbFactory.CreateDbContextAsync();
+        var lagerplatz = await db.Lagerplaetze.FirstOrDefaultAsync(l => l.LagerplatzID == zeile.LagerplatzID && l.MandantNr == mandantNr);
+        if (lagerplatz is null) return;
+
+        db.Lagerplaetze.Remove(lagerplatz);
+        try
+        {
+            await db.SaveChangesAsync();
+        }
+        catch (DbUpdateException ex) when (DbFehler.IstFremdschluesselverletzung(ex))
+        {
+            _fehler = $"Der Lagerplatz \"{lagerplatz.Bezeichnung}\" hat Bestände. Setze ihn stattdessen auf inaktiv.";
+            return;
+        }
+
+        _meldung = $"Lagerplatz \"{lagerplatz.Bezeichnung}\" gelöscht.";
+        await LadeAsync();
+    }
+}
