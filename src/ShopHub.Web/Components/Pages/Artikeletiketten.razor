@@ -280,9 +280,9 @@
             ? []
             : (await db.Artikelvarianten.AsNoTracking()
                 .Where(v => v.MandantNr == mandantNr && bundleSkus.Contains(v.SKU))
-                .Select(v => new { v.SKU, v.Artikel!.Bezeichnung, v.Variantenname })
+                .Select(v => new { v.SKU, v.Artikel!.Bezeichnung, v.Variantenname, v.Variantenmerkmale })
                 .ToListAsync())
-                .ToDictionary(v => v.SKU, v => Bestandteilname(Anzeigename(v.Bezeichnung, v.Variantenname)), StringComparer.OrdinalIgnoreCase);
+                .ToDictionary(v => v.SKU, v => Bestandteilname(v.Bezeichnung, v.Variantenname, v.Variantenmerkmale), StringComparer.OrdinalIgnoreCase);
 
         _zeilen = treffer.Take(MaxZeilen).Select(t =>
         {
@@ -315,10 +315,15 @@
 
     private static readonly string[] StiftZusaetze = [" für bemalbare Kuscheltiere", " für bemalbare Tiere"];
 
-    // Kurzname eines Bundle-Bestandteils: bei "Bemalbares Kuscheltier Größe L, Einhorn" nur das Tier hinter dem Komma,
-    // bei den Stiften ohne den Zusatz "für bemalbare Kuscheltiere".
-    private static string Bestandteilname(string anzeigename)
+    // Kurzname eines Bundle-Bestandteils: das Merkmal "Tiername" der Variante. Fehlt es (z. B. bei den Stiften), dient die
+    // Bezeichnung: bei "Bemalbares Kuscheltier Größe L, Einhorn" nur der Teil hinter dem Komma, bei den Stiften ohne den
+    // Zusatz "für bemalbare Kuscheltiere".
+    private static string Bestandteilname(string bezeichnung, string? variantenname, string? variantenmerkmale)
     {
+        var tiername = LeseMerkmal(variantenmerkmale, "Tiername");
+        if (!string.IsNullOrWhiteSpace(tiername)) return tiername.Trim();
+
+        var anzeigename = Anzeigename(bezeichnung, variantenname);
         var name = anzeigename[(anzeigename.LastIndexOf(',') + 1)..].Trim();
         foreach (var zusatz in StiftZusaetze)
         {
@@ -326,6 +331,24 @@
         }
 
         return name.Trim();
+    }
+
+    // Variantenmerkmale ist ein JSON-Objekt {"Tiername":"Einhorn","Größe":"L"}; ein nicht lesbarer Inhalt zählt als "kein Merkmal".
+    private static string? LeseMerkmal(string? json, string name)
+    {
+        if (string.IsNullOrWhiteSpace(json)) return null;
+
+        try
+        {
+            using var dokument = JsonDocument.Parse(json);
+            return dokument.RootElement.TryGetProperty(name, out var wert) && wert.ValueKind == JsonValueKind.String
+                ? wert.GetString()
+                : null;
+        }
+        catch (Exception ex) when (ex is JsonException or InvalidOperationException)
+        {
+            return null;
+        }
     }
 
     // BundleElemente ist ein JSON-Array [{"SKU":"B1008","Menge":1}]; ein nicht lesbarer Inhalt zählt als "kein Bundle".
