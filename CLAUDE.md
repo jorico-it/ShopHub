@@ -165,7 +165,9 @@ Prüfung beim Löschen gegen die Datenbank).
 Live seit 2026-10-29 unter https://shophub.jorico.de (IIS auf dem IONOS-Server, Site und App-Pool `ShopHub`,
 Ordner `C:\inetpub\shophub`, Zertifikat über win-acme). Der Connection String liegt als Umgebungsvariable
 `ConnectionStrings__Default` am App-Pool (SQL-Login `shophub_app`, nur Lesen/Schreiben auf `Shopify`), nie in Dateien.
-Veröffentlicht wird per `dotnet publish` und Kopieren per Remotedesktop, Schritte und Fehlersuche in `Veroeffentlichung.md`.
+Veröffentlicht wird wie bei der Marktanalyse per Web Deploy aus Visual Studio (Profil `Server`, Konto `deploy-shophub`;
+das Profil liegt wegen `.gitignore` nur lokal), ersatzweise per `dotnet publish` und Kopieren per Remotedesktop. Erstinstallation,
+Schritte und Fehlersuche in `Veroeffentlichung.md`.
 Schemaänderungen (Migrationen) laufen weiter vom Entwicklungsrechner, da `shophub_app` kein DDL darf. Das Absichern der
 Serverzugänge (Ports 1433/3389, Deploy-Konten) steht noch aus.
 

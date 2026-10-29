@@ -96,7 +96,15 @@ WebSocket-Protokoll muss als IIS-Rolle installiert sein (Blazor Server).
 und Schritt 4.4 wiederholen. Zum Prüfen nicht `curl -I` (HEAD) verwenden, das liefert für `/login` eine Umleitung; stattdessen
 `curl.exe -s -o NUL -w "%{http_code}`n" https://shophub.jorico.de/login` (erwartet 200) oder den Browser.
 
-## Spätere Aktualisierungen
+## Spätere Aktualisierungen per Web Deploy (Visual Studio)
+
+Wie bei der Marktanalyse: Projekt `ShopHub.Web` > Rechtsklick > Veröffentlichen > Profil `Server` (`Properties\PublishProfiles\Server.pubxml`,
+nicht im Repository). Beim ersten Mal fragt VS das Kennwort von `deploy-shophub` ab und speichert es verschlüsselt.
+Voraussetzung auf dem Server: Benutzer `deploy-shophub` über IIS-Manager > Site `ShopHub` > Deploy > "Configure Web Deploy Publishing...",
+danach in die lokale Gruppe Administratoren (wie bei den anderen Sites; Absicherung steht aus). Web Deploy legt `app_offline.htm`
+selbst an, der Connection String am App-Pool bleibt unberührt. Neue Migrationen vorher vom Entwicklungsrechner anwenden.
+
+## Alternativ: Ordnerkopie von Hand
 
 1. `dotnet publish` wie in Schritt 2. 2. Auf dem Server im Websiteordner eine leere Datei `app_offline.htm` anlegen (stoppt die App,
 gibt die Dateien frei). 3. Neuen Inhalt entpacken (`web.config` nur überschreiben, wenn geändert). 4. `app_offline.htm` löschen.
