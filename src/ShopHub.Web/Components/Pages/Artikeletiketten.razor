@@ -199,7 +199,7 @@
         public string SKU { get; init; } = "";
         public string Anzeigename { get; init; } = "";
         public string GTIN { get; init; } = "";
-        // Namen der Bestandteile, wenn die Variante ein Bundle ist (mit "2 x " bei Menge über 1 und ihrer Größe in Klammern); sonst leer.
+        // Namen der Bestandteile, wenn die Variante ein Bundle ist (mit "2 x " bei Menge über 1 und ihrer Größe dahinter); sonst leer.
         public IReadOnlyList<string> BundleNamen { get; init; } = [];
         public bool IstBundle => BundleNamen.Count > 0;
         public int? MarkeID { get; init; }
@@ -314,7 +314,7 @@
         string.IsNullOrWhiteSpace(variantenname) ? bezeichnung : $"{bezeichnung} – {variantenname}";
 
     // Kurzname eines Bundle-Bestandteils: das Merkmal "Tiername" der Variante. Fehlt es, die Kurzbeschreibung des Artikels.
-    // Fehlt auch die, dient die Bezeichnung. Hat die Variante das Merkmal "Größe", steht sie in Klammern dahinter.
+    // Fehlt auch die, dient die Bezeichnung. Hat die Variante das Merkmal "Größe", steht sie dahinter.
     private static string Bestandteilname(string bezeichnung, string? kurzbeschreibung, string? variantenname, string? variantenmerkmale)
     {
         var tiername = LeseMerkmal(variantenmerkmale, "Tiername");
@@ -323,7 +323,7 @@
             : Anzeigename(bezeichnung, variantenname);
 
         var groesse = LeseMerkmal(variantenmerkmale, "Größe")?.Trim();
-        return string.IsNullOrEmpty(groesse) ? name : $"{name} ({groesse})";
+        return string.IsNullOrEmpty(groesse) ? name : $"{name} {groesse}";
     }
 
     // Variantenmerkmale ist ein JSON-Objekt {"Tiername":"Einhorn","Größe":"L"}; ein nicht lesbarer Inhalt zählt als "kein Merkmal".
