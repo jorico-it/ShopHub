@@ -133,6 +133,12 @@ die Datenbank lehnt ungültiges JSON selbst ab, in C# sind es `string`. Dafür b
 Speichern mit "SqlDbType 35 ungültig" scheitert) - der Paketverweis in der csproj darf nicht entfernt werden.
 Eine Datenbank unter SQL Server 2022 oder älter kennt den Typ `json` nicht.
 
+## Suchen
+
+Artikelliste, Bestände und Artikeletiketten suchen gleich: Eingabefeld mit Platzhalter "Artikelnummer, Bezeichnung oder EAN", gesucht
+wird erst per Schaltfläche "Suchen" oder Eingabetaste (`_suche` = getippter Text, `_gesuchtNach` = Text der letzten Suche). Durchsucht
+werden Artikelnummer, Bezeichnung (bei Varianten auch der Variantenname) und EAN, nicht SKU oder Marke. Neue Suchen genauso bauen.
+
 ## Zahlentabellen
 
 In Tabellen mit Zahleneingabefeldern springen Pfeil hoch/runter zum Feld darüber/darunter: das Feld bekommt das Attribut

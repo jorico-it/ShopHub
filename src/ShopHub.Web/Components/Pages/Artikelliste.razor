@@ -18,7 +18,7 @@
 
 <div class="d-flex flex-wrap align-items-center gap-3 mb-3">
     <a class="btn btn-primary" href="/artikel-bearbeiten">Neuen Artikel anlegen</a>
-    <input class="form-control form-control-sm" style="width: 260px;" placeholder="Artikelnummer, Bezeichnung oder SKU"
+    <input class="form-control form-control-sm" style="width: 260px;" placeholder="Artikelnummer, Bezeichnung oder EAN"
            @bind="_suche" @bind:event="oninput" @onkeydown="SucheTaste" />
     <button type="button" class="btn btn-sm btn-primary" @onclick="Suchen">Suchen</button>
     <label class="form-check-label">
@@ -99,7 +99,7 @@ else
             var suchtext = _gesuchtNach;
             abfrage = abfrage.Where(a => a.Artikelnummer.Contains(suchtext)
                 || a.Bezeichnung.Contains(suchtext)
-                || a.Varianten.Any(v => v.SKU.Contains(suchtext)));
+                || a.Varianten.Any(v => v.GTIN != null && v.GTIN.Contains(suchtext)));
         }
 
         var gesamt = await abfrage.CountAsync();

@@ -46,7 +46,7 @@
     <div class="border rounded p-3 mb-3">
         <h5>Varianten auswählen</h5>
         <div class="d-flex align-items-center gap-3 mb-2">
-            <input class="form-control form-control-sm" style="width: 320px;" placeholder="Artikelnummer, Bezeichnung, SKU, EAN oder Marke"
+            <input class="form-control form-control-sm" style="width: 320px;" placeholder="Artikelnummer, Bezeichnung oder EAN"
                    @bind="_suche" @bind:event="oninput" @onkeydown="SucheTaste" />
             <button type="button" class="btn btn-sm btn-primary" @onclick="Suchen">Suchen</button>
             <label class="mb-0">
@@ -230,10 +230,9 @@
         var suche = _gesuchtNach;
         if (suche.Length > 0)
         {
-            abfrage = abfrage.Where(v => v.SKU.Contains(suche) || v.GTIN!.Contains(suche)
+            abfrage = abfrage.Where(v => v.GTIN!.Contains(suche)
                 || (v.Variantenname != null && v.Variantenname.Contains(suche))
-                || v.Artikel!.Artikelnummer.Contains(suche) || v.Artikel.Bezeichnung.Contains(suche)
-                || (v.Artikel.Marke != null && v.Artikel.Marke.Markenname.Contains(suche)));
+                || v.Artikel!.Artikelnummer.Contains(suche) || v.Artikel.Bezeichnung.Contains(suche));
         }
 
         var treffer = await abfrage

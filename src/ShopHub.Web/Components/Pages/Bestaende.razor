@@ -42,7 +42,7 @@
                 <option value="@l.LagerplatzID">@l.Bezeichnung</option>
             }
         </select>
-        <input class="form-control form-control-sm" style="width: 280px;" placeholder="Artikelnummer, Bezeichnung, SKU oder EAN"
+        <input class="form-control form-control-sm" style="width: 280px;" placeholder="Artikelnummer, Bezeichnung oder EAN"
                @bind="_suche" @bind:event="oninput" @onkeydown="SucheTaste" />
         <button type="button" class="btn btn-sm btn-primary" @onclick="Suchen">Suchen</button>
         <label class="mb-0">
@@ -149,7 +149,7 @@
         var suche = _gesuchtNach;
         if (suche.Length > 0)
         {
-            abfrage = abfrage.Where(v => v.SKU.Contains(suche) || (v.GTIN != null && v.GTIN.Contains(suche))
+            abfrage = abfrage.Where(v => (v.GTIN != null && v.GTIN.Contains(suche))
                 || (v.Variantenname != null && v.Variantenname.Contains(suche))
                 || v.Artikel!.Artikelnummer.Contains(suche) || v.Artikel.Bezeichnung.Contains(suche));
         }
