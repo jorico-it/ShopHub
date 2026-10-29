@@ -28,12 +28,12 @@
         <table class="table table-sm calc-table mb-0" style="width: auto;">
             <tbody>
                 <tr>
-                    <td class="calc-label">Breite (mm)</td>
-                    <td><input type="number" class="form-control form-control-sm" style="width: 110px; text-align: right;" min="@MinMm" max="@MaxMm" @bind="_breiteMm" /></td>
+                    <td class="calc-label" style="width: auto; white-space: nowrap; padding-right: 8px;">Breite (mm)</td>
+                    <td style="text-align: left;"><input type="number" class="form-control form-control-sm" style="width: 55px; text-align: right;" min="@MinMm" max="@MaxMm" @bind="_breiteMm" /></td>
                 </tr>
                 <tr>
-                    <td class="calc-label">Höhe (mm)</td>
-                    <td><input type="number" class="form-control form-control-sm" style="width: 110px; text-align: right;" min="@MinMm" max="@MaxMm" @bind="_hoeheMm" /></td>
+                    <td class="calc-label" style="width: auto; white-space: nowrap; padding-right: 8px;">Höhe (mm)</td>
+                    <td style="text-align: left;"><input type="number" class="form-control form-control-sm" style="width: 55px; text-align: right;" min="@MinMm" max="@MaxMm" @bind="_hoeheMm" /></td>
                 </tr>
             </tbody>
         </table>
@@ -64,9 +64,7 @@
                 <thead>
                     <tr>
                         <th>Artikelnummer</th>
-                        <th>SKU</th>
                         <th>Bezeichnung</th>
-                        <th>Marke</th>
                         <th>EAN</th>
                         <th class="text-end">Anzahl</th>
                     </tr>
@@ -76,15 +74,7 @@
                     {
                         <tr>
                             <td style="text-align: left;">@z.Artikelnummer</td>
-                            <td style="text-align: left;">@z.SKU</td>
                             <td style="text-align: left;">@z.Anzeigename</td>
-                            <td style="text-align: left;">
-                                @(z.Markenname ?? "keine Marke")
-                                @if (!z.HatMarkenlogo)
-                                {
-                                    <span class="text-muted">(kein Logo)</span>
-                                }
-                            </td>
                             <td style="text-align: left;">@z.GTIN</td>
                             <td class="text-end">
                                 @if (z.Fehler is null)
