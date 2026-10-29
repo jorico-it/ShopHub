@@ -158,7 +158,7 @@
                 </div>
                 <div class="etikett-unten">
                     <div class="etikett-text">
-                        <div class="etikett-artnr">@z.Artikelnummer@(z.Groesse is null ? "" : $" · Größe {z.Groesse}")</div>
+                        <div class="etikett-artnr">@z.Artikelnummer</div>
                         <div class="etikett-name">@(z.IstBundle ? "Bundle: " : "")@z.Anzeigename</div>
                         @if (z.IstBundle)
                         {
@@ -199,9 +199,7 @@
         public string SKU { get; init; } = "";
         public string Anzeigename { get; init; } = "";
         public string GTIN { get; init; } = "";
-        // Merkmal "Größe" der Variante; steht auf dem Etikett neben der Artikelnummer.
-        public string? Groesse { get; init; }
-        // Namen der Bestandteile, wenn die Variante ein Bundle ist (mit "2 x " bei Menge über 1); sonst leer.
+        // Namen der Bestandteile, wenn die Variante ein Bundle ist (mit "2 x " bei Menge über 1 und ihrer Größe in Klammern); sonst leer.
         public IReadOnlyList<string> BundleNamen { get; init; } = [];
         public bool IstBundle => BundleNamen.Count > 0;
         public int? MarkeID { get; init; }
@@ -264,7 +262,7 @@
             .Select(v => new
             {
                 v.ArtikelvarianteID, v.Artikel!.Artikelnummer, v.SKU, v.Artikel.Bezeichnung, v.Variantenname, v.GTIN,
-                v.BundleElemente, v.Variantenmerkmale,
+                v.BundleElemente,
                 v.Artikel.MarkeID,
                 Markenname = v.Artikel.Marke != null ? v.Artikel.Marke.Markenname : null,
                 // Nur ob ein Markenlogo existiert, nicht die Bilddaten laden.
@@ -299,7 +297,6 @@
                 SKU = t.SKU,
                 Anzeigename = Anzeigename(t.Bezeichnung, t.Variantenname),
                 GTIN = t.GTIN!.Trim(),
-                Groesse = LeseGroesse(t.Variantenmerkmale),
                 BundleNamen = bundles[t.ArtikelvarianteID]
                     .Select(e => (e.Menge > 1 ? $"{e.Menge} x " : "") + bestandteile.GetValueOrDefault(e.SKU, e.SKU))
                     .ToList(),
@@ -317,18 +314,17 @@
         string.IsNullOrWhiteSpace(variantenname) ? bezeichnung : $"{bezeichnung} – {variantenname}";
 
     // Kurzname eines Bundle-Bestandteils: das Merkmal "Tiername" der Variante. Fehlt es, die Kurzbeschreibung des Artikels.
-    // Fehlt auch die, dient die Bezeichnung.
+    // Fehlt auch die, dient die Bezeichnung. Hat die Variante das Merkmal "Größe", steht sie in Klammern dahinter.
     private static string Bestandteilname(string bezeichnung, string? kurzbeschreibung, string? variantenname, string? variantenmerkmale)
     {
         var tiername = LeseMerkmal(variantenmerkmale, "Tiername");
-        if (!string.IsNullOrWhiteSpace(tiername)) return tiername.Trim();
-        if (!string.IsNullOrWhiteSpace(kurzbeschreibung)) return kurzbeschreibung.Trim();
+        var name = !string.IsNullOrWhiteSpace(tiername) ? tiername.Trim()
+            : !string.IsNullOrWhiteSpace(kurzbeschreibung) ? kurzbeschreibung.Trim()
+            : Anzeigename(bezeichnung, variantenname);
 
-        return Anzeigename(bezeichnung, variantenname);
+        var groesse = LeseMerkmal(variantenmerkmale, "Größe")?.Trim();
+        return string.IsNullOrEmpty(groesse) ? name : $"{name} ({groesse})";
     }
-
-    private static string? LeseGroesse(string? variantenmerkmale) =>
-        LeseMerkmal(variantenmerkmale, "Größe")?.Trim() is { Length: > 0 } groesse ? groesse : null;
 
     // Variantenmerkmale ist ein JSON-Objekt {"Tiername":"Einhorn","Größe":"L"}; ein nicht lesbarer Inhalt zählt als "kein Merkmal".
     private static string? LeseMerkmal(string? json, string name)
