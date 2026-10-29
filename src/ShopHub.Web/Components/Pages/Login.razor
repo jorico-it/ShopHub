@@ -47,7 +47,7 @@
 
     private async Task LoginUser()
     {
-        var result = await SignInManager.PasswordSignInAsync(Input.Email, Input.Password, isPersistent: true, lockoutOnFailure: false);
+        var result = await SignInManager.PasswordSignInAsync(Input.Email, Input.Password, isPersistent: true, lockoutOnFailure: true);
         if (result.Succeeded)
         {
             var ziel = Navigation.IstLokal(ReturnUrl) ? ReturnUrl! : "/";
@@ -60,6 +60,10 @@
             }
 
             Navigation.NavigateTo(ziel, forceLoad: true);
+        }
+        else if (result.IsLockedOut)
+        {
+            _errorMessage = "Zu viele Fehlversuche - das Konto ist für 15 Minuten gesperrt.";
         }
         else
         {
