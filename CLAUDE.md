@@ -133,6 +133,12 @@ die Datenbank lehnt ungültiges JSON selbst ab, in C# sind es `string`. Dafür b
 Speichern mit "SqlDbType 35 ungültig" scheitert) - der Paketverweis in der csproj darf nicht entfernt werden.
 Eine Datenbank unter SQL Server 2022 oder älter kennt den Typ `json` nicht.
 
+## Zahlentabellen
+
+In Tabellen mit Zahleneingabefeldern springen Pfeil hoch/runter zum Feld darüber/darunter: das Feld bekommt das Attribut
+`data-german-number-input`, die Seite importiert in `OnAfterRenderAsync(firstRender)` `/js/germanNumberInputNav.js` und ruft
+`init` auf (so in `Bestaende.razor`, `Artikeletiketten.razor`, den Bundle-Mengen in `ArtikelBearbeiten.razor`). Neue Zahlentabellen genauso bauen.
+
 ## Import und Export
 
 Menüpunkte `/import` und `/export` (für alle Benutzer, jeweils im aktuellen Mandanten). Bisher gibt es

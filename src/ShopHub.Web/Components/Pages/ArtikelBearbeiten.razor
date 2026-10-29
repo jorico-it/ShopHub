@@ -202,7 +202,7 @@
                             {
                                 <div class="d-flex align-items-center gap-2 mb-1">
                                     <input class="form-control form-control-sm" style="width: 160px;" maxlength="50" list="bundle-sku-liste" placeholder="SKU" @bind="element.SKU" />
-                                    <input type="number" class="form-control form-control-sm" style="width: 70px; text-align: right;" min="1" title="Menge" @bind="element.Menge" />
+                                    <input type="number" class="form-control form-control-sm" style="width: 70px; text-align: right;" min="1" title="Menge" data-german-number-input @bind="element.Menge" />
                                     <span class="text-muted">@BundleBezeichnung(element.SKU)</span>
                                     <button type="button" class="btn btn-sm btn-outline-danger" title="Element entfernen" @onclick="() => _bundleZeilen.Remove(element)">×</button>
                                 </div>

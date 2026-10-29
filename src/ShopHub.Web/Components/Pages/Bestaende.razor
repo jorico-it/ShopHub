@@ -6,6 +6,7 @@
 @inherits MandantSeite
 @rendermode InteractiveServer
 @inject IDbContextFactory<AppDbContext> DbFactory
+@inject IJSRuntime JS
 
 <PageTitle>Bestände</PageTitle>
 
@@ -73,7 +74,7 @@
                         <td style="text-align: left;">@z.Anzeigename</td>
                         <td class="text-end">
                             <input type="number" class="form-control form-control-sm" style="width: 110px; text-align: right;"
-                                   min="0" value="@z.Bestand" @onchange="e => SetzeBestand(z, e.Value?.ToString())" />
+                                   min="0" value="@z.Bestand" data-german-number-input @onchange="e => SetzeBestand(z, e.Value?.ToString())" />
                         </td>
                     </tr>
                 }
@@ -88,6 +89,16 @@
 
 @code {
     private const int MaxZeilen = 100;
+
+    protected override async Task OnAfterRenderAsync(bool firstRender)
+    {
+        if (firstRender)
+        {
+            // Pfeil hoch/runter springt zwischen den Bestandsfeldern (wie in allen Zahlentabellen).
+            var module = await JS.InvokeAsync<IJSObjectReference>("import", "/js/germanNumberInputNav.js");
+            await module.InvokeVoidAsync("init");
+        }
+    }
 
     private sealed class Zeile
     {
