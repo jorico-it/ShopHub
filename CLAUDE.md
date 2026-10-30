@@ -1,7 +1,7 @@
 # JORICO ShopHub
 
-Web-App zur Pflege der Daten für Shopify in der SQL-Server-Datenbank `ShopHub` auf (die Datenbank hieß bis 2026-10-30 `Shopify`)
-87.106.137.233 (gleicher Server und Zugang wie die Marktanalyse-App, nur anderer Datenbankname).
+Web-App zur Pflege der Daten für Shopify in der SQL-Server-Datenbank `ShopHub` auf
+87.106.137.233 (gleicher Server und Zugang wie die Marktanalyse-App, nur anderer Datenbankname; die Datenbank hieß bis 2026-10-30 `Shopify`).
 
 ## Stack
 
