@@ -35,14 +35,14 @@ Passwort erzeugen (nur Buchstaben und Ziffern, damit nichts mit Anführungszeich
 ```sql
 USE [master];
 CREATE LOGIN [shophub_app] WITH PASSWORD = N'DAS_ERZEUGTE_PASSWORT', CHECK_POLICY = ON;
-USE [Shopify];
+USE [ShopHub];
 CREATE USER [shophub_app] FOR LOGIN [shophub_app];
 ALTER ROLE db_datareader ADD MEMBER [shophub_app];
 ALTER ROLE db_datawriter ADD MEMBER [shophub_app];
 ```
 
 Die SQL-Zeilen gehören in SSMS (neues Abfragefenster) und nicht in PowerShell. Alternativ in PowerShell mit `sqlcmd -S localhost -E -C -b -Q "..."`
-(CREATE LOGIN und CREATE USER in zwei Aufrufen, der zweite mit `-d Shopify`); das Passwort bleibt dabei in einer Variable und erscheint nicht auf dem Bildschirm.
+(CREATE LOGIN und CREATE USER in zwei Aufrufen, der zweite mit `-d ShopHub`); das Passwort bleibt dabei in einer Variable und erscheint nicht auf dem Bildschirm.
 Das Passwort nie in den Chat einfügen. Ist es nicht mehr bekannt: `ALTER LOGIN [shophub_app] WITH PASSWORD = N'neu';` und Schritt 4.4 wiederholen.
 
 Die App braucht zur Laufzeit nur Lesen und Schreiben. Änderungen am Schema (Migrationen) laufen weiter vom Entwicklungsrechner.
@@ -56,7 +56,7 @@ Die App braucht zur Laufzeit nur Lesen und Schreiben. Änderungen am Schema (Mig
 4. Connection String am App-Pool setzen (PowerShell als Administrator, Passwort aus Schritt 3 einsetzen):
 
 ```powershell
-& "$env:windir\system32\inetsrv\appcmd.exe" set config -section:system.applicationHost/applicationPools "/+[name='ShopHub'].environmentVariables.[name='ConnectionStrings__Default',value='Server=localhost;Database=Shopify;User Id=shophub_app;Password=DAS_ERZEUGTE_PASSWORT;TrustServerCertificate=True']" /commit:apphost
+& "$env:windir\system32\inetsrv\appcmd.exe" set config -section:system.applicationHost/applicationPools "/+[name='ShopHub'].environmentVariables.[name='ConnectionStrings__Default',value='Server=localhost;Database=ShopHub;User Id=shophub_app;Password=DAS_ERZEUGTE_PASSWORT;TrustServerCertificate=True']" /commit:apphost
 & "$env:windir\system32\inetsrv\appcmd.exe" recycle apppool /apppool.name:ShopHub
 ```
 

@@ -1,6 +1,6 @@
 # JORICO ShopHub
 
-Web-App zur Pflege der Daten für Shopify in der SQL-Server-Datenbank `Shopify` auf
+Web-App zur Pflege der Daten für Shopify in der SQL-Server-Datenbank `ShopHub` auf (die Datenbank hieß bis 2026-10-30 `Shopify`)
 87.106.137.233 (gleicher Server und Zugang wie die Marktanalyse-App, nur anderer Datenbankname).
 
 ## Stack
@@ -14,7 +14,7 @@ Web-App zur Pflege der Daten für Shopify in der SQL-Server-Datenbank `Shopify` 
 - Layout/Farbschema (orange Sidebar, Bootstrap) stammt aus der Marktanalyse-App
   (`Dropbox\AI_Projects\Marktanalyse_App`).
 
-- Login wie in der Marktanalyse-App: ASP.NET Core Identity (Tabellen `AspNet…` in der Datenbank `Shopify`),
+- Login wie in der Marktanalyse-App: ASP.NET Core Identity (Tabellen `AspNet…` in der Datenbank `ShopHub`),
   keine öffentliche Registrierung, Konten legen Admins unter `/benutzerverwaltung` an. Das
   Erstkonto kommt beim Start aus den User Secrets `Admin:Email` / `Admin:InitialPassword`, falls
   die Benutzertabelle leer ist. Anonym erreichbar sind nur `/login`, `/impressum` und `/Error`.
@@ -182,7 +182,7 @@ Prüfung beim Löschen gegen die Datenbank).
 
 Live seit 2026-10-29 unter https://shophub.jorico.de (IIS auf dem IONOS-Server, Site und App-Pool `ShopHub`,
 Ordner `C:\inetpub\shophub`, Zertifikat über win-acme). Der Connection String liegt als Umgebungsvariable
-`ConnectionStrings__Default` am App-Pool (SQL-Login `shophub_app`, nur Lesen/Schreiben auf `Shopify`), nie in Dateien.
+`ConnectionStrings__Default` am App-Pool (SQL-Login `shophub_app`, nur Lesen/Schreiben auf `ShopHub`), nie in Dateien.
 Veröffentlicht wird wie bei der Marktanalyse per Web Deploy aus Visual Studio (Profil `Server`, Konto `deploy-shophub`;
 das Profil liegt wegen `.gitignore` nur lokal), ersatzweise per `dotnet publish` und Kopieren per Remotedesktop. Erstinstallation,
 Schritte und Fehlersuche in `Veroeffentlichung.md`.
