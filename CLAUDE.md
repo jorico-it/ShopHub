@@ -5,7 +5,7 @@ Web-App zur Pflege der Daten für Shopify in der SQL-Server-Datenbank `ShopHub` 
 
 ## Stack
 
-- .NET 9, ASP.NET Core Blazor Web App (Interactive Server Render Mode) — ein Projekt, C# für
+- .NET 10 (LTS), ASP.NET Core Blazor Web App (Interactive Server Render Mode) — ein Projekt, C# für
   UI und Backend, kein separates Frontend-Build.
 - EF Core mit SQL Server. Der Connection String liegt **nicht** in `appsettings.json` (dort nur
   ein leerer Platzhalter, da die Datei eingecheckt ist), sondern lokal in den .NET User Secrets
@@ -129,7 +129,7 @@ und filtern immer auf `MandantNr`. Ein Konto ohne Mandant sieht keine Mandantend
 
 `Variantenmerkmale` und `BundleElemente` haben den nativen SQL-Server-2025-Typ `json` (Kompatibilitätsgrad 170);
 die Datenbank lehnt ungültiges JSON selbst ab, in C# sind es `string`. Dafür braucht das Projekt
-`Microsoft.Data.SqlClient` 6.1 oder neuer (EF Core 9 bringt nur 5.1 mit, das den Typ nicht kennt und beim
+`Microsoft.Data.SqlClient` 6.1 oder neuer (EF Core 9 brachte nur 5.1 mit, das den Typ nicht kennt und beim
 Speichern mit "SqlDbType 35 ungültig" scheitert) - der Paketverweis in der csproj darf nicht entfernt werden.
 Eine Datenbank unter SQL Server 2022 oder älter kennt den Typ `json` nicht.
 

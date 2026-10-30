@@ -1,21 +1,21 @@
 <Project Sdk="Microsoft.NET.Sdk.Web">
 
   <PropertyGroup>
-    <TargetFramework>net9.0</TargetFramework>
+    <TargetFramework>net10.0</TargetFramework>
     <Nullable>enable</Nullable>
     <ImplicitUsings>enable</ImplicitUsings>
     <UserSecretsId>7d2f4c1e-5b8a-4e63-9a0f-3c6d1b2e8f47</UserSecretsId>
   </PropertyGroup>
 
   <ItemGroup>
-    <PackageReference Include="Microsoft.AspNetCore.Identity.EntityFrameworkCore" Version="9.*" />
-    <PackageReference Include="Microsoft.EntityFrameworkCore.Design" Version="9.*">
+    <PackageReference Include="Microsoft.AspNetCore.Identity.EntityFrameworkCore" Version="10.*" />
+    <PackageReference Include="Microsoft.EntityFrameworkCore.Design" Version="10.*">
       <IncludeAssets>runtime; build; native; contentfiles; analyzers; buildtransitive</IncludeAssets>
       <PrivateAssets>all</PrivateAssets>
     </PackageReference>
-    <PackageReference Include="Microsoft.EntityFrameworkCore.SqlServer" Version="9.*" />
+    <PackageReference Include="Microsoft.EntityFrameworkCore.SqlServer" Version="10.*" />
     <!-- Ab 6.1 kennt der Treiber den nativen json-Datentyp von SQL Server 2025 (Spalte BundleElemente);
-         EF Core 9 bringt nur 5.1 mit. -->
+         EF Core 9 brachte nur 5.1 mit (seit .NET 10 / EF Core 10 nicht mehr nötig, Paket bleibt vorerst). -->
     <PackageReference Include="Microsoft.Data.SqlClient" Version="6.1.*" />
     <!-- Excel-Import/-Export (Artikelbestände) -->
     <PackageReference Include="ClosedXML" Version="0.104.*" />
