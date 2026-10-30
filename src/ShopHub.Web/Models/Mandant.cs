@@ -54,6 +54,10 @@ public class Mandant : IMitZeitstempel
     /// <summary>Wie viele Etiketten nebeneinander in einer Reihe gedruckt werden (Druckseite = Reihe).</summary>
     public int EtikettenProReihe { get; set; } = StandardEtikettenProReihe;
 
+    /// <summary>Wie viele Reihen übereinander auf einer Druckseite stehen, also Etiketten pro Spalte.</summary>
+    public int EtikettenProSpalte { get; set; } = StandardEtikettenProSpalte;
+
+    public const int StandardEtikettenProSpalte = 1;
     public const int StandardEtikettBreiteMm = 152;
     public const int StandardEtikettHoeheMm = 103;
     public const int StandardEtikettenProReihe = 1;

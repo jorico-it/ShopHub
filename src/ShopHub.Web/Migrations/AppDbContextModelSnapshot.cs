@@ -604,6 +604,11 @@ namespace ShopHub.Web.Migrations
                         .HasColumnType("int")
                         .HasDefaultValue(1);
 
+                    b.Property<int>("EtikettenProSpalte")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("int")
+                        .HasDefaultValue(1);
+
                     b.Property<DateTime>("GeaendertAm")
                         .ValueGeneratedOnAdd()
                         .HasColumnType("datetime2(0)")

@@ -67,6 +67,7 @@ public class AppDbContext(DbContextOptions<AppDbContext> options) : IdentityDbCo
             e.Property(m => m.EtikettBreiteMm).HasDefaultValue(Mandant.StandardEtikettBreiteMm);
             e.Property(m => m.EtikettHoeheMm).HasDefaultValue(Mandant.StandardEtikettHoeheMm);
             e.Property(m => m.EtikettenProReihe).HasDefaultValue(Mandant.StandardEtikettenProReihe);
+            e.Property(m => m.EtikettenProSpalte).HasDefaultValue(Mandant.StandardEtikettenProSpalte);
             KonfiguriereAktivUndZeitstempel(e);
         });
 
