@@ -137,48 +137,20 @@
     }
 </div>
 
-@* Am Bildschirm sind nur die ersten VorschauAnzahl Etiketten sichtbar (alle anderen und leere Reihen/Seiten tragen "nur-druck"); gedruckt werden alle. *@
-<div class="etiketten-druck">
-    @{ var nr = 0; }
-    @foreach (var seite in Seiten)
+@* Vorschau (nur am Bildschirm): die ersten VorschauAnzahl Etiketten. *@
+<div class="etiketten-vorschau no-print">
+    @foreach (var z in Vorschau)
     {
-        <div class="etiketten-seite @(nr < VorschauAnzahl ? "" : "nur-druck")">
-        @foreach (var reihe in seite)
-        {
-        <div class="etiketten-reihe @(nr < VorschauAnzahl ? "" : "nur-druck")">
-        @foreach (var z in reihe)
-        {
-            <div class="etikett @(nr++ < VorschauAnzahl ? "" : "nur-druck")">
-                <div class="etikett-kopf">
-                    @if (z.HatMarkenlogo)
-                    {
-                        <img class="etikett-logo" src="/marke-logo/@z.MarkeID?v=@z.LogoVersion" alt="" />
-                    }
-                </div>
-                <div class="etikett-unten">
-                    <div class="etikett-text">
-                        <div class="etikett-artnr">@z.Artikelnummer</div>
-                        <div class="etikett-name">@(z.IstBundle ? "Bundle: " : "")@z.Anzeigename</div>
-                        @if (z.IstBundle)
-                        {
-                            <div class="etikett-bundle">@string.Join(", ", z.BundleNamen)</div>
-                        }
-                    </div>
-                    <div class="etikett-code">
-                        <div class="etikett-barcode"><BarcodeSvg Module="z.Module" ModulbreiteMm="Strichbreite" /></div>
-                        <div class="etikett-gtin" style="@GtinStil(z.Module.Length)">
-                            @foreach (var ziffer in z.GTIN)
-                            {
-                                <span>@ziffer</span>
-                            }
-                        </div>
-                    </div>
-                </div>
-            </div>
-        }
-        </div>
-        }
-        </div>
+        @Etikett(z)
+    }
+</div>
+
+@* Vorlagen (nie sichtbar): je gewählter Variante genau ein Etikett. Beim Drucken vervielfältigt etikettendruck.js sie im Browser
+   zu den Druckseiten; Blazor rendert und überträgt also nie jedes einzelne Etikett. *@
+<div class="etiketten-vorlagen">
+    @foreach (var z in _auswahl.Values.OrderBy(z => z.Artikelnummer).ThenBy(z => z.SKU))
+    {
+        <div class="etikett-vorlage" data-anzahl="@z.Anzahl">@Etikett(z)</div>
     }
 </div>
 
@@ -234,13 +206,40 @@
 
     private int ProSpalte => Math.Clamp(_proSpalte, 1, MaxProSpalte);
 
-    // Alle zu druckenden Etiketten, je Variante so oft wie gewählt, zeilenweise auf Druckseiten verteilt: je Seite ProSpalte Reihen
-    // zu ProReihe Etiketten (die letzte Reihe und die letzte Seite dürfen kürzer sein).
-    private IEnumerable<Zeile[][]> Seiten => _auswahl.Values
+    // Die ersten VorschauAnzahl Etiketten in Druckreihenfolge (je Variante so oft wie gewählt).
+    private IEnumerable<Zeile> Vorschau => _auswahl.Values
         .OrderBy(z => z.Artikelnummer).ThenBy(z => z.SKU)
-        .SelectMany(z => Enumerable.Repeat(z, z.Anzahl))
-        .Chunk(ProReihe)
-        .Chunk(ProSpalte);
+        .SelectMany(z => Enumerable.Repeat(z, Math.Min(z.Anzahl, VorschauAnzahl)))
+        .Take(VorschauAnzahl);
+
+    // Ein Etikett; Vorschau und Vorlagen zeigen es mit demselben Aufbau.
+    private RenderFragment Etikett(Zeile z) => @<div class="etikett">
+        <div class="etikett-kopf">
+            @if (z.HatMarkenlogo)
+            {
+                <img class="etikett-logo" src="/marke-logo/@z.MarkeID?v=@z.LogoVersion" alt="" />
+            }
+        </div>
+        <div class="etikett-unten">
+            <div class="etikett-text">
+                <div class="etikett-artnr">@z.Artikelnummer</div>
+                <div class="etikett-name">@(z.IstBundle ? "Bundle: " : "")@z.Anzeigename</div>
+                @if (z.IstBundle)
+                {
+                    <div class="etikett-bundle">@string.Join(", ", z.BundleNamen)</div>
+                }
+            </div>
+            <div class="etikett-code">
+                <div class="etikett-barcode"><BarcodeSvg Module="z.Module" ModulbreiteMm="Strichbreite" /></div>
+                <div class="etikett-gtin" style="@GtinStil(z.Module.Length)">
+                    @foreach (var ziffer in z.GTIN)
+                    {
+                        <span>@ziffer</span>
+                    }
+                </div>
+            </div>
+        </div>
+    </div>;
 
     private int VorschauEtiketten => Math.Min(GesamtAnzahl, VorschauAnzahl);
 
@@ -457,5 +456,10 @@
         _auswahl.Clear();
     }
 
-    private async Task Drucken() => await JS.InvokeVoidAsync("print");
+    // Die Druckseiten baut der Browser aus den Vorlagen (Reihen x Spalten); der Aufruf kehrt sofort zurück.
+    private async Task Drucken()
+    {
+        var modul = await JS.InvokeAsync<IJSObjectReference>("import", "/js/etikettendruck.js");
+        await modul.InvokeVoidAsync("drucke", ProReihe, ProSpalte);
+    }
 }

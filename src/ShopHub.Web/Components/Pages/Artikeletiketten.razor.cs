@@ -41,9 +41,10 @@ public partial class Artikeletiketten
             // Der Barcode ist immer 15 mm hoch; das Logo bekommt die restliche Höhe der Kopfzeile.
             var faktor = Faktor.ToString("0.##", CultureInfo.InvariantCulture);
             return $$"""
-                .etiketten-druck { display: flex; flex-direction: column; gap: 16px; }
-                .etiketten-seite { display: flex; flex-direction: column; gap: 8px; }
-                .etiketten-reihe { display: flex; flex-wrap: nowrap; gap: 8px; }
+                .etiketten-vorschau { display: flex; flex-wrap: wrap; gap: 8px; }
+                .etiketten-vorlagen, .etiketten-druck-ausgabe { display: none; }
+                .etiketten-seite { display: flex; flex-direction: column; }
+                .etiketten-reihe { display: flex; flex-wrap: nowrap; }
                 .etikett { box-sizing: border-box; flex: none; width: {{breite}}mm; height: {{hoehe}}mm; padding: calc(1.5mm * {{faktor}}); display: flex;
                     flex-direction: column; overflow: hidden; background: #fff; color: #000; border: 1px dashed #999;
                     font-family: Arial, Helvetica, sans-serif; }
@@ -57,18 +58,15 @@ public partial class Artikeletiketten
                 .etikett-artnr { font-size: calc(7pt * {{faktor}}); text-align: left; line-height: 1.15; white-space: nowrap; flex: none; }
                 .etikett-name { font-size: calc(5.5pt * {{faktor}}); text-align: left; line-height: 1.15; max-height: 2.3em; overflow: hidden; flex: none; }
                 .etikett-bundle { font-size: calc(5pt * {{faktor}}); text-align: left; line-height: 1.15; max-height: 3.5em; overflow: hidden; flex: none; }
-                .nur-druck { display: none; }
                 @media print {
                     @page { size: {{seitenbreite}}mm {{seitenhoehe}}mm; margin: 0; }
                     html, body { margin: 0; padding: 0; background: #fff; }
-                    .sidebar, .no-print, #blazor-error-ui { display: none !important; }
-                    .page { display: block !important; }
-                    main, article.content { padding: 0 !important; margin: 0 !important; }
-                    .etiketten-druck { display: block; }
-                    .etiketten-druck .nur-druck { display: flex; }
-                    .etiketten-seite { gap: 0; width: {{seitenbreite}}mm; break-after: page; page-break-after: always; }
+                    /* Gedruckt wird nur der von etikettendruck.js angehängte Druckbereich, die ganze App ist ausgeblendet. */
+                    body > :not(.etiketten-druck-ausgabe) { display: none !important; }
+                    .etiketten-druck-ausgabe { display: block; }
+                    .etiketten-seite { width: {{seitenbreite}}mm; break-after: page; page-break-after: always; }
                     .etiketten-seite:last-child { break-after: auto; page-break-after: auto; }
-                    .etiketten-reihe { gap: 0; width: {{seitenbreite}}mm; }
+                    .etiketten-reihe { width: {{seitenbreite}}mm; }
                     .etikett { border: none; }
                 }
                 """;
