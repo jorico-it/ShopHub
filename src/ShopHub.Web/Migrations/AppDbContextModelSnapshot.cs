@@ -589,6 +589,21 @@ namespace ShopHub.Web.Migrations
                         .HasColumnType("datetime2(0)")
                         .HasDefaultValueSql("SYSUTCDATETIME()");
 
+                    b.Property<int>("EtikettBreiteMm")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("int")
+                        .HasDefaultValue(152);
+
+                    b.Property<int>("EtikettHoeheMm")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("int")
+                        .HasDefaultValue(103);
+
+                    b.Property<int>("EtikettenProReihe")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("int")
+                        .HasDefaultValue(1);
+
                     b.Property<DateTime>("GeaendertAm")
                         .ValueGeneratedOnAdd()
                         .HasColumnType("datetime2(0)")

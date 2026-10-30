@@ -11,7 +11,7 @@
 
 <PageTitle>Artikeletiketten</PageTitle>
 
-@* Seitengröße und Druckregeln: beim Drucken bleiben nur die Etiketten übrig, eine Etikette je Seite. *@
+@* Seitengröße und Druckregeln: beim Drucken bleiben nur die Etiketten übrig, eine Reihe (1 bis N Etiketten nebeneinander) je Seite. *@
 <style>@((MarkupString)Css)</style>
 
 <div class="no-print">
@@ -24,19 +24,24 @@
     }
 
     <div class="border rounded p-3 mb-3">
-        <h5>Etikettengröße</h5>
+        <h5>Etikettenformat</h5>
         <table class="table table-sm calc-table mb-0" style="width: auto;">
             <tbody>
                 <tr>
                     <td class="calc-label">Breite (mm)</td>
-                    <td style="text-align: left;"><input type="number" class="form-control form-control-sm" style="width: 55px; text-align: right;" min="@MinMm" max="@MaxMm" @bind="_breiteMm" /></td>
+                    <td style="text-align: left;"><input type="number" class="form-control form-control-sm" style="width: 55px; text-align: right;" min="@MinMm" max="@MaxMm" @bind="_breiteMm" @bind:after="SpeichereEinstellungenAsync" /></td>
                 </tr>
                 <tr>
                     <td class="calc-label">Höhe (mm)</td>
-                    <td style="text-align: left;"><input type="number" class="form-control form-control-sm" style="width: 55px; text-align: right;" min="@MinMm" max="@MaxMm" @bind="_hoeheMm" /></td>
+                    <td style="text-align: left;"><input type="number" class="form-control form-control-sm" style="width: 55px; text-align: right;" min="@MinMm" max="@MaxMm" @bind="_hoeheMm" @bind:after="SpeichereEinstellungenAsync" /></td>
+                </tr>
+                <tr>
+                    <td class="calc-label">Etiketten pro Reihe</td>
+                    <td style="text-align: left;"><input type="number" class="form-control form-control-sm" style="width: 55px; text-align: right;" min="1" max="@MaxProReihe" @bind="_proReihe" @bind:after="SpeichereEinstellungenAsync" /></td>
                 </tr>
             </tbody>
         </table>
+        <div class="text-muted mt-2">Die drei Werte werden je Mandant gespeichert. Bei mehreren Etiketten pro Reihe ist eine Druckseite so breit wie die ganze Reihe.</div>
         @if (BarcodeZuBreit)
         {
             <div class="text-danger mt-2">Der Barcode ist breiter als das Etikett - bitte die Etikettenbreite anpassen.</div>
@@ -117,17 +122,18 @@
     @if (GesamtAnzahl > 0)
     {
         <h5>Vorschau</h5>
-        @if (GesamtAnzahl > VorschauAnzahl)
+        @if (GesamtAnzahl > VorschauEtiketten)
         {
-            <div class="text-muted mb-2">Gezeigt werden die ersten @VorschauAnzahl Etiketten, gedruckt werden alle @GesamtAnzahl.ToString("N0", German).</div>
+            <div class="text-muted mb-2">Gezeigt werden die ersten @VorschauEtiketten Etiketten, gedruckt werden alle @GesamtAnzahl.ToString("N0", German).</div>
         }
     }
 </div>
 
 <div class="etiketten-druck">
-    @foreach (var z in _auswahl.Values.OrderBy(z => z.Artikelnummer).ThenBy(z => z.SKU))
+    @foreach (var reihe in Reihen)
     {
-        @for (var i = 0; i < z.Anzahl; i++)
+        <div class="etiketten-reihe">
+        @foreach (var z in reihe)
         {
             <div class="etikett">
                 <div class="etikett-kopf">
@@ -157,6 +163,7 @@
                 </div>
             </div>
         }
+        </div>
     }
 </div>
 
@@ -165,8 +172,9 @@
     private const int MaxMm = 200;
     private const int MaxZeilen = 100;
     private const int MaxAnzahl = 500;
+    private const int MaxProReihe = 10;
 
-    // Auf dem Bildschirm zeigt die Vorschau nur die ersten Etiketten; gedruckt werden alle (siehe Css).
+    // Auf dem Bildschirm zeigt die Vorschau nur die ersten Etiketten (ganze Reihen); gedruckt werden alle (siehe Css).
     private const int VorschauAnzahl = 3;
 
     private static readonly CultureInfo German = CultureInfo.GetCultureInfo("de-DE");
@@ -198,10 +206,39 @@
     private string _gesuchtNach = "";
     private bool _nurAktive = true;
     private bool _abgeschnitten;
-    private int _breiteMm = 152;
-    private int _hoeheMm = 103;
+    // Etikettenformat: kommt je Mandant aus der Datenbank (siehe LadeAsync) und wird bei jeder Änderung gespeichert.
+    private int _breiteMm = Models.Mandant.StandardEtikettBreiteMm;
+    private int _hoeheMm = Models.Mandant.StandardEtikettHoeheMm;
+    private int _proReihe = Models.Mandant.StandardEtikettenProReihe;
 
     private int GesamtAnzahl => _auswahl.Values.Sum(z => z.Anzahl);
+
+    private int ProReihe => Math.Clamp(_proReihe, 1, MaxProReihe);
+
+    // Alle zu druckenden Etiketten, je Variante so oft wie gewählt, in Reihen zu ProReihe Stück (die letzte Reihe darf kürzer sein).
+    private IEnumerable<Zeile[]> Reihen => _auswahl.Values
+        .OrderBy(z => z.Artikelnummer).ThenBy(z => z.SKU)
+        .SelectMany(z => Enumerable.Repeat(z, z.Anzahl))
+        .Chunk(ProReihe);
+
+    private int VorschauReihen => (int)Math.Ceiling(VorschauAnzahl / (double)ProReihe);
+    private int VorschauEtiketten => Math.Min(GesamtAnzahl, VorschauReihen * ProReihe);
+
+    private async Task SpeichereEinstellungenAsync()
+    {
+        _breiteMm = Math.Clamp(_breiteMm, MinMm, MaxMm);
+        _hoeheMm = Math.Clamp(_hoeheMm, MinMm, MaxMm);
+        _proReihe = ProReihe;
+        if (MandantNr is not { } mandantNr) return;
+
+        await using var db = await DbFactory.CreateDbContextAsync();
+        // Direkt per Update, damit GeaendertAm des Mandanten (Versionsnummer der Logo-Adressen) unberührt bleibt.
+        await db.Mandanten.Where(m => m.MandantNr == mandantNr)
+            .ExecuteUpdateAsync(s => s
+                .SetProperty(m => m.EtikettBreiteMm, _breiteMm)
+                .SetProperty(m => m.EtikettHoeheMm, _hoeheMm)
+                .SetProperty(m => m.EtikettenProReihe, _proReihe));
+    }
 
     protected override async Task OnAfterRenderAsync(bool firstRender)
     {
@@ -220,6 +257,17 @@
         if (MandantNr is not { } mandantNr) return;
 
         await using var db = await DbFactory.CreateDbContextAsync();
+
+        var format = await db.Mandanten.AsNoTracking()
+            .Where(m => m.MandantNr == mandantNr)
+            .Select(m => new { m.EtikettBreiteMm, m.EtikettHoeheMm, m.EtikettenProReihe })
+            .FirstOrDefaultAsync();
+        if (format is not null)
+        {
+            _breiteMm = Math.Clamp(format.EtikettBreiteMm, MinMm, MaxMm);
+            _hoeheMm = Math.Clamp(format.EtikettHoeheMm, MinMm, MaxMm);
+            _proReihe = Math.Clamp(format.EtikettenProReihe, 1, MaxProReihe);
+        }
 
         var abfrage = db.Artikelvarianten.AsNoTracking().Where(v => v.MandantNr == mandantNr && v.GTIN != null);
         if (_nurAktive)

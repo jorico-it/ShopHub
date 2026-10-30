@@ -45,6 +45,19 @@ public class Mandant : IMitZeitstempel
     public byte[]? Logo { get; set; }
     public string? LogoContentType { get; set; }
 
+    /// <summary>Breite einer Artikeletikette in mm (Seite Artikeletiketten; wird dort beim Ändern gespeichert).</summary>
+    public int EtikettBreiteMm { get; set; } = StandardEtikettBreiteMm;
+
+    /// <summary>Höhe einer Artikeletikette in mm.</summary>
+    public int EtikettHoeheMm { get; set; } = StandardEtikettHoeheMm;
+
+    /// <summary>Wie viele Etiketten nebeneinander in einer Reihe gedruckt werden (Druckseite = Reihe).</summary>
+    public int EtikettenProReihe { get; set; } = StandardEtikettenProReihe;
+
+    public const int StandardEtikettBreiteMm = 152;
+    public const int StandardEtikettHoeheMm = 103;
+    public const int StandardEtikettenProReihe = 1;
+
     /// <summary>UTC; wird von der Datenbank gesetzt (Default SYSUTCDATETIME()).</summary>
     public DateTime ErstelltAm { get; set; }
 

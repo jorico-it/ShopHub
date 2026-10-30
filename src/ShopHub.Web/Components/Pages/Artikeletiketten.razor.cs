@@ -35,11 +35,14 @@ public partial class Artikeletiketten
         {
             var breite = Math.Clamp(_breiteMm, MinMm, MaxMm).ToString(CultureInfo.InvariantCulture);
             var hoehe = Math.Clamp(_hoeheMm, MinMm, MaxMm).ToString(CultureInfo.InvariantCulture);
+            // Eine Druckseite ist eine Reihe: so breit wie alle Etiketten nebeneinander, so hoch wie eine Etikette.
+            var seitenbreite = (Math.Clamp(_breiteMm, MinMm, MaxMm) * ProReihe).ToString(CultureInfo.InvariantCulture);
             // Der Barcode ist immer 15 mm hoch; das Logo bekommt die restliche Höhe der Kopfzeile.
             var faktor = Faktor.ToString("0.##", CultureInfo.InvariantCulture);
             return $$"""
-                .etiketten-druck { display: flex; flex-wrap: wrap; gap: 8px; }
-                .etikett { box-sizing: border-box; width: {{breite}}mm; height: {{hoehe}}mm; padding: calc(1.5mm * {{faktor}}); display: flex;
+                .etiketten-druck { display: flex; flex-direction: column; gap: 8px; }
+                .etiketten-reihe { display: flex; flex-wrap: nowrap; gap: 8px; }
+                .etikett { box-sizing: border-box; flex: none; width: {{breite}}mm; height: {{hoehe}}mm; padding: calc(1.5mm * {{faktor}}); display: flex;
                     flex-direction: column; overflow: hidden; background: #fff; color: #000; border: 1px dashed #999;
                     font-family: Arial, Helvetica, sans-serif; }
                 .etikett-kopf { display: flex; align-items: flex-start; flex: 1; min-height: 0; }
@@ -52,17 +55,18 @@ public partial class Artikeletiketten
                 .etikett-artnr { font-size: calc(7pt * {{faktor}}); text-align: left; line-height: 1.15; white-space: nowrap; flex: none; }
                 .etikett-name { font-size: calc(5.5pt * {{faktor}}); text-align: left; line-height: 1.15; max-height: 2.3em; overflow: hidden; flex: none; }
                 .etikett-bundle { font-size: calc(5pt * {{faktor}}); text-align: left; line-height: 1.15; max-height: 3.5em; overflow: hidden; flex: none; }
-                .etiketten-druck .etikett:nth-child(n+{{VorschauAnzahl + 1}}) { display: none; }
+                .etiketten-druck .etiketten-reihe:nth-child(n+{{VorschauReihen + 1}}) { display: none; }
                 @media print {
-                    @page { size: {{breite}}mm {{hoehe}}mm; margin: 0; }
+                    @page { size: {{seitenbreite}}mm {{hoehe}}mm; margin: 0; }
                     html, body { margin: 0; padding: 0; background: #fff; }
                     .sidebar, .no-print, #blazor-error-ui { display: none !important; }
                     .page { display: block !important; }
                     main, article.content { padding: 0 !important; margin: 0 !important; }
                     .etiketten-druck { display: block; }
-                    .etiketten-druck .etikett:nth-child(n+{{VorschauAnzahl + 1}}) { display: flex; }
-                    .etikett { border: none; break-after: page; page-break-after: always; }
-                    .etikett:last-child { break-after: auto; page-break-after: auto; }
+                    .etiketten-druck .etiketten-reihe:nth-child(n+{{VorschauReihen + 1}}) { display: flex; }
+                    .etiketten-reihe { gap: 0; width: {{seitenbreite}}mm; break-after: page; page-break-after: always; }
+                    .etiketten-reihe:last-child { break-after: auto; page-break-after: auto; }
+                    .etikett { border: none; }
                 }
                 """;
         }
