@@ -47,7 +47,7 @@
         </table>
         <div class="text-muted mt-2">
             Die Werte werden je Mandant gespeichert. Eine Druckseite enthält Etiketten pro Reihe (nebeneinander) mal Etiketten pro Spalte (übereinander)
-            und ist entsprechend groß: @(_breiteMm * ProReihe) x @(_hoeheMm * ProSpalte) mm.
+            und ist entsprechend groß: @SeitenbreiteMm x @SeitenhoeheMm mm.
         </div>
         @if (BarcodeZuBreit)
         {
@@ -205,6 +205,11 @@
     private int ProReihe => Math.Clamp(_proReihe, 1, MaxProReihe);
 
     private int ProSpalte => Math.Clamp(_proSpalte, 1, MaxProSpalte);
+
+    // Gedruckte Seitengröße: wie im Druck-CSS mit den begrenzten Werten, nicht mit dem gerade getippten Rohwert.
+    private int SeitenbreiteMm => Math.Clamp(_breiteMm, MinMm, MaxMm) * ProReihe;
+
+    private int SeitenhoeheMm => Math.Clamp(_hoeheMm, MinMm, MaxMm) * ProSpalte;
 
     // Die ersten VorschauAnzahl Etiketten in Druckreihenfolge (je Variante so oft wie gewählt).
     private IEnumerable<Zeile> Vorschau => _auswahl.Values

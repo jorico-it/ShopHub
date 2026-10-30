@@ -36,8 +36,8 @@ public partial class Artikeletiketten
             var breite = Math.Clamp(_breiteMm, MinMm, MaxMm).ToString(CultureInfo.InvariantCulture);
             var hoehe = Math.Clamp(_hoeheMm, MinMm, MaxMm).ToString(CultureInfo.InvariantCulture);
             // Eine Druckseite: so breit wie alle Etiketten einer Reihe nebeneinander, so hoch wie alle Reihen übereinander.
-            var seitenbreite = (Math.Clamp(_breiteMm, MinMm, MaxMm) * ProReihe).ToString(CultureInfo.InvariantCulture);
-            var seitenhoehe = (Math.Clamp(_hoeheMm, MinMm, MaxMm) * ProSpalte).ToString(CultureInfo.InvariantCulture);
+            var seitenbreite = SeitenbreiteMm.ToString(CultureInfo.InvariantCulture);
+            var seitenhoehe = SeitenhoeheMm.ToString(CultureInfo.InvariantCulture);
             // Der Barcode ist immer 15 mm hoch; das Logo bekommt die restliche Höhe der Kopfzeile.
             var faktor = Faktor.ToString("0.##", CultureInfo.InvariantCulture);
             return $$"""
