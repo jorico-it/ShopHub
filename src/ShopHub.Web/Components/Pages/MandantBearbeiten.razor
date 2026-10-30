@@ -117,19 +117,15 @@
     <h5>Logo</h5>
     <table class="table table-sm calc-table mb-0" style="width: auto;">
         <tbody>
-            <tr>
-                <td class="calc-label">Aktuelles Logo</td>
-                <td style="text-align: left;">
-                    @if (_hatLogo)
-                    {
+            @if (_hatLogo)
+            {
+                <tr>
+                    <td class="calc-label">Aktuelles Logo</td>
+                    <td style="text-align: left;">
                         <img src="/mandant-logo/@MandantNr?v=@_logoVersion" alt="Logo" style="max-height: 80px; max-width: 240px;" />
-                    }
-                    else
-                    {
-                        <span class="text-muted">Kein Logo hinterlegt.</span>
-                    }
-                </td>
-            </tr>
+                    </td>
+                </tr>
+            }
             <tr>
                 <td class="calc-label">Neue Datei (PNG/JPEG, max. 512 KB)</td>
                 <td><InputFile class="form-control form-control-sm" style="width: 420px;" accept=".png,.jpg,.jpeg" OnChange="LogoHochladen" /></td>
