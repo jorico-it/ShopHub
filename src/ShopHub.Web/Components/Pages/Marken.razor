@@ -239,6 +239,8 @@
     private async Task LogoEntfernen(Zeile zeile, bool etiketten)
     {
         _meldung = _fehler = null;
+        if (!await JS.InvokeAsync<bool>("confirm", $"{LogoName(etiketten)} der Marke \"{zeile.Markenname}\" wirklich entfernen?")) return;
+
         if (await LogoSpeichern(zeile, null, null, etiketten))
         {
             _meldung = $"{LogoName(etiketten)} für \"{zeile.Markenname}\" entfernt.";

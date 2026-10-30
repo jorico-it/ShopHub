@@ -310,6 +310,8 @@
     private async Task LogoEntfernen()
     {
         _meldung = _fehler = null;
+        if (!await JS.InvokeAsync<bool>("confirm", "Logo wirklich entfernen?")) return;
+
         await LogoSpeichern(null, null);
         _meldung = "Logo entfernt.";
     }
