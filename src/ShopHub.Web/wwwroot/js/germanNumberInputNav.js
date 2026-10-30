@@ -46,6 +46,19 @@ export function init() {
         }
     });
 
+    // Zahlenfelder (type="number") mit max-Attribut kappen den Wert schon beim Tippen. Ohne das bliebe ein zu großer
+    // Wert sichtbar stehen, wenn der Server ihn auf denselben Wert wie zuvor kappt: Blazor sieht dann keine Änderung
+    // und frischt das Feld nicht auf, die Anzeige weicht vom gespeicherten Wert ab.
+    document.addEventListener("input", (e) => {
+        const target = e.target;
+        if (!(target instanceof HTMLInputElement) || !target.hasAttribute(MARKER) || target.type !== "number") return;
+
+        const max = Number(target.max);
+        if (target.max !== "" && Number.isFinite(max) && target.value !== "" && Number(target.value) > max) {
+            target.value = String(max);
+        }
+    });
+
     // Eingefügten Text ebenso bereinigen, damit z. B. aus Excel kopierte Werte mit Währungs-
     // symbol/Leerzeichen ("123,45 €") nicht unbemerkt Buchstaben/Symbole ins Feld bringen.
     document.addEventListener("paste", (e) => {
