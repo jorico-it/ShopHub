@@ -11,9 +11,17 @@ public partial class Artikeletiketten
     // Breite des schmalsten Strichs und der schmalsten Lücke: fest die Norm-Breite 0,33 mm (GS1), nicht einstellbar.
     private const decimal Strichbreite = GtinBarcode.NominaleModulbreiteMm;
 
+    // Innenabstand des Etiketts. Links mindestens so viel, wie der nicht bedruckbare Rand üblicher Drucker (etwa 3 mm) abschneidet,
+    // sonst fehlt beim ersten Etikett einer Reihe ein Stück des ersten Zeichens.
+    private const double MindestRandLinksMm = 3.5;
+
+    private double RandMm => 1.5 * Faktor;
+
+    private double RandLinksMm => Math.Max(RandMm, MindestRandLinksMm);
+
     // Der Barcode (mit Ruhezonen, EAN-13) ist breiter als der nutzbare Platz auf dem Etikett.
     private bool BarcodeZuBreit =>
-        (double)(GtinBarcode.GesamtModule(95) * Strichbreite) > Math.Clamp(_breiteMm, MinMm, MaxMm) - 2 * 1.5 * Faktor;
+        (double)(GtinBarcode.GesamtModule(95) * Strichbreite) > Math.Clamp(_breiteMm, MinMm, MaxMm) - RandLinksMm - RandMm;
 
     // Die Ziffern unter dem Barcode sind genau so breit wie die Striche (ohne Ruhezonen) und gleichmäßig verteilt;
     // die Schrift richtet sich nach der Strichbreite (etwa 7,6 Modulbreiten hoch, dann passt jede Ziffer in ihr Raster).
@@ -40,12 +48,13 @@ public partial class Artikeletiketten
             var seitenhoehe = SeitenhoeheMm.ToString(CultureInfo.InvariantCulture);
             // Der Barcode ist immer 15 mm hoch; das Logo bekommt die restliche Höhe der Kopfzeile.
             var faktor = Faktor.ToString("0.##", CultureInfo.InvariantCulture);
+            var randLinks = RandLinksMm.ToString("0.##", CultureInfo.InvariantCulture);
             return $$"""
                 .etiketten-vorschau { display: flex; flex-wrap: wrap; gap: 8px; }
                 .etiketten-vorlagen, .etiketten-druck-ausgabe { display: none; }
                 .etiketten-seite { display: flex; flex-direction: column; }
                 .etiketten-reihe { display: flex; flex-wrap: nowrap; }
-                .etikett { box-sizing: border-box; flex: none; width: {{breite}}mm; height: {{hoehe}}mm; padding: calc(1.5mm * {{faktor}}); display: flex;
+                .etikett { box-sizing: border-box; flex: none; width: {{breite}}mm; height: {{hoehe}}mm; padding: calc(1.5mm * {{faktor}}) calc(1.5mm * {{faktor}}) calc(1.5mm * {{faktor}}) {{randLinks}}mm; display: flex;
                     flex-direction: column; overflow: hidden; background: #fff; color: #000; border: 1px dashed #999;
                     font-family: Arial, Helvetica, sans-serif; }
                 .etikett-kopf { display: flex; align-items: flex-start; flex: 1; min-height: 0; }
