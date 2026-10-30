@@ -92,8 +92,9 @@
                             <td class="text-end">
                                 @if (z.Fehler is null)
                                 {
-                                    <input type="number" class="form-control form-control-sm anzahl-eingabe" style="width: 4rem; text-align: right;"
-                                           min="0" max="@MaxAnzahl" value="@z.Anzahl" data-german-number-input
+                                    @* Text- statt Zahlenfeld: nur so lässt sich die Eingabe auf 3 Ziffern (höchstens 999) begrenzen. *@
+                                    <input class="form-control form-control-sm anzahl-eingabe" style="width: 4rem; text-align: right;"
+                                           maxlength="3" inputmode="numeric" value="@z.Anzahl" data-eingabefilter="ziffern" data-german-number-input
                                            @onchange="e => SetzeAnzahl(z, e.Value?.ToString())" />
                                 }
                                 else
@@ -136,16 +137,18 @@
     }
 </div>
 
+@* Am Bildschirm sind nur die ersten VorschauAnzahl Etiketten sichtbar (alle anderen und leere Reihen/Seiten tragen "nur-druck"); gedruckt werden alle. *@
 <div class="etiketten-druck">
+    @{ var nr = 0; }
     @foreach (var seite in Seiten)
     {
-        <div class="etiketten-seite">
+        <div class="etiketten-seite @(nr < VorschauAnzahl ? "" : "nur-druck")">
         @foreach (var reihe in seite)
         {
-        <div class="etiketten-reihe">
+        <div class="etiketten-reihe @(nr < VorschauAnzahl ? "" : "nur-druck")">
         @foreach (var z in reihe)
         {
-            <div class="etikett">
+            <div class="etikett @(nr++ < VorschauAnzahl ? "" : "nur-druck")">
                 <div class="etikett-kopf">
                     @if (z.HatMarkenlogo)
                     {
@@ -183,7 +186,7 @@
     private const int MinMm = 20;
     private const int MaxMm = 200;
     private const int MaxZeilen = 100;
-    private const int MaxAnzahl = 5000;
+    private const int MaxAnzahl = 999;
     private const int MaxProReihe = 10;
     private const int MaxProSpalte = 10;
 
@@ -239,9 +242,7 @@
         .Chunk(ProReihe)
         .Chunk(ProSpalte);
 
-    private int EtikettenProSeite => ProReihe * ProSpalte;
-    private int VorschauSeiten => (int)Math.Ceiling(VorschauAnzahl / (double)EtikettenProSeite);
-    private int VorschauEtiketten => Math.Min(GesamtAnzahl, VorschauSeiten * EtikettenProSeite);
+    private int VorschauEtiketten => Math.Min(GesamtAnzahl, VorschauAnzahl);
 
     private async Task SpeichereEinstellungenAsync()
     {
@@ -268,6 +269,9 @@
             // Pfeil hoch/runter springt zwischen den Mengenfeldern (wie in der Marktanalyse-App).
             var module = await JS.InvokeAsync<IJSObjectReference>("import", "/js/germanNumberInputNav.js");
             await module.InvokeVoidAsync("init");
+
+            var filter = await JS.InvokeAsync<IJSObjectReference>("import", "/js/eingabefilter.js");
+            await filter.InvokeVoidAsync("init");
         }
     }
 

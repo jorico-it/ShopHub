@@ -57,7 +57,7 @@ public partial class Artikeletiketten
                 .etikett-artnr { font-size: calc(7pt * {{faktor}}); text-align: left; line-height: 1.15; white-space: nowrap; flex: none; }
                 .etikett-name { font-size: calc(5.5pt * {{faktor}}); text-align: left; line-height: 1.15; max-height: 2.3em; overflow: hidden; flex: none; }
                 .etikett-bundle { font-size: calc(5pt * {{faktor}}); text-align: left; line-height: 1.15; max-height: 3.5em; overflow: hidden; flex: none; }
-                .etiketten-druck .etiketten-seite:nth-child(n+{{VorschauSeiten + 1}}) { display: none; }
+                .nur-druck { display: none; }
                 @media print {
                     @page { size: {{seitenbreite}}mm {{seitenhoehe}}mm; margin: 0; }
                     html, body { margin: 0; padding: 0; background: #fff; }
@@ -65,7 +65,7 @@ public partial class Artikeletiketten
                     .page { display: block !important; }
                     main, article.content { padding: 0 !important; margin: 0 !important; }
                     .etiketten-druck { display: block; }
-                    .etiketten-druck .etiketten-seite:nth-child(n+{{VorschauSeiten + 1}}) { display: flex; }
+                    .etiketten-druck .nur-druck { display: flex; }
                     .etiketten-seite { gap: 0; width: {{seitenbreite}}mm; break-after: page; page-break-after: always; }
                     .etiketten-seite:last-child { break-after: auto; page-break-after: auto; }
                     .etiketten-reihe { gap: 0; width: {{seitenbreite}}mm; }
