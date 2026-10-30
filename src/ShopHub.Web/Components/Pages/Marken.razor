@@ -65,8 +65,10 @@
                                 {
                                     <img src="/marke-logo/@z.MarkeID?v=@z.LogoVersion" alt="Logo" style="max-height: 32px; max-width: 80px;" />
                                 }
-                                <InputFile class="form-control form-control-sm" style="width: 220px;" accept=".png,.jpg,.jpeg"
+                                @* Das native Dateifeld mit "Keine Datei ausgewählt" bleibt versteckt; der Button öffnet es. *@
+                                <InputFile id="@($"logo-{z.MarkeID}")" class="d-none" accept=".png,.jpg,.jpeg"
                                            OnChange="e => LogoHochladen(z, e, false)" />
+                                <label for="@($"logo-{z.MarkeID}")" class="btn btn-sm btn-outline-primary mb-0">@(z.HatLogo ? "Logo ersetzen" : "Logo wählen")</label>
                                 @if (z.HatLogo)
                                 {
                                     <button type="button" class="btn btn-sm btn-outline-danger" @onclick="() => LogoEntfernen(z, false)">Entfernen</button>
@@ -79,8 +81,9 @@
                                 {
                                     <img src="/marke-logo-etiketten/@z.MarkeID?v=@z.LogoVersion" alt="Logo Etiketten" style="max-height: 32px; max-width: 80px;" />
                                 }
-                                <InputFile class="form-control form-control-sm" style="width: 220px;" accept=".png,.jpg,.jpeg"
+                                <InputFile id="@($"logo-etiketten-{z.MarkeID}")" class="d-none" accept=".png,.jpg,.jpeg"
                                            OnChange="e => LogoHochladen(z, e, true)" />
+                                <label for="@($"logo-etiketten-{z.MarkeID}")" class="btn btn-sm btn-outline-primary mb-0">@(z.HatLogoEtiketten ? "Logo ersetzen" : "Logo wählen")</label>
                                 @if (z.HatLogoEtiketten)
                                 {
                                     <button type="button" class="btn btn-sm btn-outline-danger" @onclick="() => LogoEntfernen(z, true)">Entfernen</button>

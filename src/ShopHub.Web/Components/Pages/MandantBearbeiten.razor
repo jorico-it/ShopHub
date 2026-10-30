@@ -128,7 +128,11 @@
             }
             <tr>
                 <td class="calc-label">Neue Datei (PNG/JPEG, max. 512 KB)</td>
-                <td><InputFile class="form-control form-control-sm" style="width: 420px;" accept=".png,.jpg,.jpeg" OnChange="LogoHochladen" /></td>
+                <td style="text-align: left;">
+                    @* Das native Dateifeld mit "Keine Datei ausgewählt" bleibt versteckt; der Button öffnet es. *@
+                    <InputFile id="mandant-logo-datei" class="d-none" accept=".png,.jpg,.jpeg" OnChange="LogoHochladen" />
+                    <label for="mandant-logo-datei" class="btn btn-sm btn-outline-primary mb-0">@(_hatLogo ? "Logo ersetzen" : "Logo wählen")</label>
+                </td>
             </tr>
         </tbody>
     </table>
