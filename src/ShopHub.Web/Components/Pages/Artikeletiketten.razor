@@ -11,7 +11,7 @@
 
 <PageTitle>Artikeletiketten</PageTitle>
 
-@* Seitengröße und Druckregeln: beim Drucken bleiben nur die Etiketten übrig, eine Druckseite = Etiketten pro Reihe x Etiketten pro Spalte. *@
+@* Seitengröße und Druckregeln: beim Drucken bleiben nur die Etiketten übrig, eine Druckseite = Etiketten nebeneinander x Etiketten übereinander. *@
 <style>@((MarkupString)Css)</style>
 
 <div class="no-print">
@@ -36,18 +36,15 @@
                     <td style="text-align: left;"><input type="number" class="form-control form-control-sm" style="width: 55px; text-align: right;" min="@MinMm" max="@MaxMm" @bind="_hoeheMm" @bind:after="SpeichereEinstellungenAsync" /></td>
                 </tr>
                 <tr>
-                    <td class="calc-label">Etiketten pro Spalte</td>
-                    <td style="text-align: left;"><input type="number" class="form-control form-control-sm" style="width: 55px; text-align: right;" min="1" max="@MaxProSpalte" @bind="_proSpalte" @bind:after="SpeichereEinstellungenAsync" /></td>
+                    <td class="calc-label">Etiketten nebeneinander</td>
+                    <td style="text-align: left;"><input type="number" class="form-control form-control-sm" style="width: 55px; text-align: right;" min="1" max="@MaxProReihe" @bind="_proReihe" @bind:after="SpeichereEinstellungenAsync" /></td>
                 </tr>
                 <tr>
-                    <td class="calc-label">Etiketten pro Reihe</td>
-                    <td style="text-align: left;"><input type="number" class="form-control form-control-sm" style="width: 55px; text-align: right;" min="1" max="@MaxProReihe" @bind="_proReihe" @bind:after="SpeichereEinstellungenAsync" /></td>
+                    <td class="calc-label">Etiketten übereinander</td>
+                    <td style="text-align: left;"><input type="number" class="form-control form-control-sm" style="width: 55px; text-align: right;" min="1" max="@MaxProSpalte" @bind="_proSpalte" @bind:after="SpeichereEinstellungenAsync" /></td>
                 </tr>
             </tbody>
         </table>
-        <div class="text-muted mt-2">
-            Eine Druckseite enthält Etiketten pro Reihe (nebeneinander) mal Etiketten pro Spalte (übereinander).
-        </div>
         @if (BarcodeZuBreit)
         {
             <div class="text-danger mt-2">Der Barcode ist breiter als das Etikett - bitte die Etikettenbreite anpassen.</div>
