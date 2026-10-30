@@ -38,8 +38,10 @@
             <thead>
                 <tr>
                     <th>Markenname</th>
+                    <th>Registrierungsnummer</th>
                     <th>Aktiv</th>
                     <th>Logo (PNG/JPEG, max. 512 KB)</th>
+                    <th>Logo Etiketten (PNG/JPEG, max. 512 KB)</th>
                     <th class="text-end">Artikel</th>
                     <th></th>
                 </tr>
@@ -52,6 +54,9 @@
                             <input class="form-control form-control-sm" style="width: 280px;" maxlength="100" @bind="z.Markenname" />
                         </td>
                         <td style="text-align: left;">
+                            <input class="form-control form-control-sm" style="width: 180px;" maxlength="50" @bind="z.Registrierungsnummer" />
+                        </td>
+                        <td style="text-align: left;">
                             <input type="checkbox" class="form-check-input" @bind="z.Aktiv" />
                         </td>
                         <td style="text-align: left;">
@@ -61,10 +66,24 @@
                                     <img src="/marke-logo/@z.MarkeID?v=@z.LogoVersion" alt="Logo" style="max-height: 32px; max-width: 80px;" />
                                 }
                                 <InputFile class="form-control form-control-sm" style="width: 220px;" accept=".png,.jpg,.jpeg"
-                                           OnChange="e => LogoHochladen(z, e)" />
+                                           OnChange="e => LogoHochladen(z, e, false)" />
                                 @if (z.HatLogo)
                                 {
-                                    <button type="button" class="btn btn-sm btn-outline-danger" @onclick="() => LogoEntfernen(z)">Entfernen</button>
+                                    <button type="button" class="btn btn-sm btn-outline-danger" @onclick="() => LogoEntfernen(z, false)">Entfernen</button>
+                                }
+                            </div>
+                        </td>
+                        <td style="text-align: left;">
+                            <div class="d-flex align-items-center gap-2">
+                                @if (z.HatLogoEtiketten)
+                                {
+                                    <img src="/marke-logo-etiketten/@z.MarkeID?v=@z.LogoVersion" alt="Logo Etiketten" style="max-height: 32px; max-width: 80px;" />
+                                }
+                                <InputFile class="form-control form-control-sm" style="width: 220px;" accept=".png,.jpg,.jpeg"
+                                           OnChange="e => LogoHochladen(z, e, true)" />
+                                @if (z.HatLogoEtiketten)
+                                {
+                                    <button type="button" class="btn btn-sm btn-outline-danger" @onclick="() => LogoEntfernen(z, true)">Entfernen</button>
                                 }
                             </div>
                         </td>
@@ -100,9 +119,11 @@
     {
         public int MarkeID { get; init; }
         public string Markenname { get; set; } = "";
+        public string? Registrierungsnummer { get; set; }
         public bool Aktiv { get; set; }
         public int ArtikelAnzahl { get; init; }
         public bool HatLogo { get; set; }
+        public bool HatLogoEtiketten { get; set; }
         public long LogoVersion { get; set; }
     }
 
@@ -124,9 +145,11 @@
             {
                 MarkeID = m.MarkeID,
                 Markenname = m.Markenname,
+                Registrierungsnummer = m.Registrierungsnummer,
                 Aktiv = m.Aktiv,
                 // Nur ob ein Logo existiert, nicht die Bilddaten laden.
                 HatLogo = m.Logo != null,
+                HatLogoEtiketten = m.LogoEtiketten != null,
                 LogoVersion = m.GeaendertAm.Ticks,
                 ArtikelAnzahl = db.Artikel.Count(a => a.MandantNr == mandantNr && a.MarkeID == m.MarkeID),
             })
@@ -177,6 +200,7 @@
         if (marke is null) return;
 
         marke.Markenname = name;
+        marke.Registrierungsnummer = string.IsNullOrWhiteSpace(zeile.Registrierungsnummer) ? null : zeile.Registrierungsnummer.Trim();
         marke.Aktiv = zeile.Aktiv;
         try
         {
@@ -192,7 +216,8 @@
         await LadeAsync();
     }
 
-    private async Task LogoHochladen(Zeile zeile, InputFileChangeEventArgs e)
+    // "etiketten" = das eigene Logo für den Etikettendruck (LogoEtiketten), sonst das normale Logo.
+    private async Task LogoHochladen(Zeile zeile, InputFileChangeEventArgs e, bool etiketten)
     {
         _meldung = _fehler = null;
         var (daten, contentType, fehler) = await LogoDatei.LesenAsync(e.File);
@@ -202,23 +227,25 @@
             return;
         }
 
-        if (await LogoSpeichern(zeile, daten, contentType))
+        if (await LogoSpeichern(zeile, daten, contentType, etiketten))
         {
-            _meldung = $"Logo für \"{zeile.Markenname}\" gespeichert.";
+            _meldung = $"{LogoName(etiketten)} für \"{zeile.Markenname}\" gespeichert.";
         }
     }
 
-    private async Task LogoEntfernen(Zeile zeile)
+    private async Task LogoEntfernen(Zeile zeile, bool etiketten)
     {
         _meldung = _fehler = null;
-        if (await LogoSpeichern(zeile, null, null))
+        if (await LogoSpeichern(zeile, null, null, etiketten))
         {
-            _meldung = $"Logo für \"{zeile.Markenname}\" entfernt.";
+            _meldung = $"{LogoName(etiketten)} für \"{zeile.Markenname}\" entfernt.";
         }
     }
 
+    private static string LogoName(bool etiketten) => etiketten ? "Etikettenlogo" : "Logo";
+
     // Das Logo wird sofort gespeichert, unabhängig von noch nicht gespeicherten Änderungen am Namen.
-    private async Task<bool> LogoSpeichern(Zeile zeile, byte[]? daten, string? contentType)
+    private async Task<bool> LogoSpeichern(Zeile zeile, byte[]? daten, string? contentType, bool etiketten)
     {
         if (MandantNr is not { } mandantNr) return false;
 
@@ -226,11 +253,21 @@
         var marke = await db.Marken.FirstOrDefaultAsync(m => m.MarkeID == zeile.MarkeID && m.MandantNr == mandantNr);
         if (marke is null) return false;
 
-        marke.Logo = daten;
-        marke.LogoContentType = contentType;
+        if (etiketten)
+        {
+            marke.LogoEtiketten = daten;
+            marke.LogoEtikettenContentType = contentType;
+        }
+        else
+        {
+            marke.Logo = daten;
+            marke.LogoContentType = contentType;
+        }
+
         await db.SaveChangesAsync();
 
-        zeile.HatLogo = daten is not null;
+        if (etiketten) zeile.HatLogoEtiketten = daten is not null;
+        else zeile.HatLogo = daten is not null;
         zeile.LogoVersion = marke.GeaendertAm.Ticks;
         return true;
     }

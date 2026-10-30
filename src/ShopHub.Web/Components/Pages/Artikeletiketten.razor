@@ -119,7 +119,7 @@
         @if (_auswahl.Values.Any(z => !z.HatMarkenlogo))
         {
             <p class="text-warning-emphasis mb-2">
-                Hinweis: Bei @_auswahl.Values.Count(z => !z.HatMarkenlogo) gewählten Varianten hat die Marke kein Logo - diese Etiketten werden ohne Logo gedruckt (Pflege unter Marken).
+                Hinweis: Bei @_auswahl.Values.Count(z => !z.HatMarkenlogo) gewählten Varianten hat die Marke kein Logo für Etiketten - diese Etiketten werden ohne Logo gedruckt (Pflege unter Marken, Spalte „Logo Etiketten“).
             </p>
         }
         <button type="button" class="btn btn-primary" disabled="@(GesamtAnzahl == 0)" @onclick="Drucken">Drucken</button>
@@ -217,7 +217,7 @@
         <div class="etikett-kopf">
             @if (z.HatMarkenlogo)
             {
-                <img class="etikett-logo" src="/marke-logo/@z.MarkeID?v=@z.LogoVersion" alt="" />
+                <img class="etikett-logo" src="/marke-logo-etiketten/@z.MarkeID?v=@z.LogoVersion" alt="" />
             }
         </div>
         <div class="etikett-unten">
@@ -318,7 +318,7 @@
                 v.Artikel.MarkeID,
                 Markenname = v.Artikel.Marke != null ? v.Artikel.Marke.Markenname : null,
                 // Nur ob ein Markenlogo existiert, nicht die Bilddaten laden.
-                HatMarkenlogo = v.Artikel.Marke != null && v.Artikel.Marke.Logo != null,
+                HatMarkenlogo = v.Artikel.Marke != null && v.Artikel.Marke.LogoEtiketten != null,
                 MarkeGeaendertAm = v.Artikel.Marke != null ? (DateTime?)v.Artikel.Marke.GeaendertAm : null,
             })
             .ToListAsync();

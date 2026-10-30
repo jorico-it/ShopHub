@@ -15,9 +15,19 @@ public class Marke : IMitZeitstempel
 
     public bool Aktiv { get; set; } = true;
 
+    /// <summary>Registrierungsnummer der Marke (Markenregister), frei eingegeben.</summary>
+    public string? Registrierungsnummer { get; set; }
+
     /// <summary>Logo als Bilddatei (PNG oder JPEG); wird über <c>/marke-logo/{MarkeID}</c> ausgeliefert.</summary>
     public byte[]? Logo { get; set; }
     public string? LogoContentType { get; set; }
+
+    /// <summary>
+    /// Logo für den Etikettendruck (PNG oder JPEG), unabhängig vom normalen <see cref="Logo"/>; wird über
+    /// <c>/marke-logo-etiketten/{MarkeID}</c> ausgeliefert. Ohne dieses Logo druckt die Etikette keins.
+    /// </summary>
+    public byte[]? LogoEtiketten { get; set; }
+    public string? LogoEtikettenContentType { get; set; }
 
     /// <summary>UTC; wird von der Datenbank gesetzt (Default SYSUTCDATETIME()).</summary>
     public DateTime ErstelltAm { get; set; }

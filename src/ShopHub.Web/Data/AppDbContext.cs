@@ -82,8 +82,10 @@ public class AppDbContext(DbContextOptions<AppDbContext> options) : IdentityDbCo
                 .HasConstraintName("FK_Marken_Mandanten")
                 .OnDelete(DeleteBehavior.NoAction);
             e.Property(m => m.Markenname).HasMaxLength(100);
-            // Logo: bewusst ohne HasMaxLength -> varbinary(max); die Größe begrenzt die Oberfläche.
+            e.Property(m => m.Registrierungsnummer).HasMaxLength(50);
+            // Logo und LogoEtiketten: bewusst ohne HasMaxLength -> varbinary(max); die Größe begrenzt die Oberfläche.
             e.Property(m => m.LogoContentType).HasMaxLength(100);
+            e.Property(m => m.LogoEtikettenContentType).HasMaxLength(100);
             KonfiguriereAktivUndZeitstempel(e);
         });
 

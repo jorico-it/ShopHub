@@ -268,6 +268,28 @@ app.MapGet("/marke-logo/{markeId:int}", async (int markeId, System.Security.Clai
     return Results.File(logo.Logo!, logo.LogoContentType ?? "application/octet-stream");
 });
 
+// Logo der Marke für den Etikettendruck (eigenes Feld LogoEtiketten); gleiche Zugriffsregel wie /marke-logo.
+app.MapGet("/marke-logo-etiketten/{markeId:int}", async (int markeId, System.Security.Claims.ClaimsPrincipal user,
+    IDbContextFactory<AppDbContext> dbFactory, HttpContext http) =>
+{
+    var istAdmin = user.HasClaim(ApplicationUserClaimsPrincipalFactory.IsAdminClaimType, "true");
+    var eigeneNr = user.FindFirst(ApplicationUserClaimsPrincipalFactory.MandantNrClaimType)?.Value;
+
+    await using var db = await dbFactory.CreateDbContextAsync();
+    var logo = await db.Marken.AsNoTracking()
+        .Where(m => m.MarkeID == markeId && m.LogoEtiketten != null)
+        .Select(m => new { m.MandantNr, m.LogoEtiketten, m.LogoEtikettenContentType })
+        .FirstOrDefaultAsync();
+    if (logo is null || (!istAdmin && eigeneNr != logo.MandantNr.ToString()))
+    {
+        return Results.NotFound();
+    }
+
+    http.Response.Headers.XContentTypeOptions = "nosniff";
+    http.Response.Headers.CacheControl = "private, max-age=3600";
+    return Results.File(logo.LogoEtiketten!, logo.LogoEtikettenContentType ?? "application/octet-stream");
+});
+
 // MapStaticAssets() registriert CSS/JS/Bilder als geroutete Endpoints - ohne
 // AllowAnonymous() greift die globale RequireAuthenticatedUser()-Fallback-Policy
 // auch hier, sodass z. B. das CSS auf der Login-Seite selbst nicht geladen

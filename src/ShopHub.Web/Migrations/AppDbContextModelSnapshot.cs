@@ -701,6 +701,13 @@ namespace ShopHub.Web.Migrations
                         .HasMaxLength(100)
                         .HasColumnType("nvarchar(100)");
 
+                    b.Property<byte[]>("LogoEtiketten")
+                        .HasColumnType("varbinary(max)");
+
+                    b.Property<string>("LogoEtikettenContentType")
+                        .HasMaxLength(100)
+                        .HasColumnType("nvarchar(100)");
+
                     b.Property<int>("MandantNr")
                         .HasColumnType("int");
 
@@ -708,6 +715,10 @@ namespace ShopHub.Web.Migrations
                         .IsRequired()
                         .HasMaxLength(100)
                         .HasColumnType("nvarchar(100)");
+
+                    b.Property<string>("Registrierungsnummer")
+                        .HasMaxLength(50)
+                        .HasColumnType("nvarchar(50)");
 
                     b.HasKey("MarkeID")
                         .HasName("PK_Marken");
