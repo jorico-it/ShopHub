@@ -60,7 +60,7 @@
                             <input type="checkbox" class="form-check-input" @bind="z.Aktiv" />
                         </td>
                         <td style="text-align: left;">
-                            <div class="d-flex align-items-center gap-2">
+                            <div class="d-inline-flex align-items-center gap-2 border rounded p-2">
                                 @if (z.HatLogo)
                                 {
                                     <img src="/marke-logo/@z.MarkeID?v=@z.LogoVersion" alt="Logo" style="max-height: 32px; max-width: 80px;" />
@@ -76,7 +76,7 @@
                             </div>
                         </td>
                         <td style="text-align: left;">
-                            <div class="d-flex align-items-center gap-2">
+                            <div class="d-inline-flex align-items-center gap-2 border rounded p-2">
                                 @if (z.HatLogoEtiketten)
                                 {
                                     <img src="/marke-logo-etiketten/@z.MarkeID?v=@z.LogoVersion" alt="Logo Etiketten" style="max-height: 32px; max-width: 80px;" />
